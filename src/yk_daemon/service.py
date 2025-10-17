@@ -376,12 +376,28 @@ def install_service(config_path: str = "config.json") -> bool:
 
         # Install the service
         # The correct signature is: InstallService(serviceClassString, serviceName, displayName, startType)
+        # We need to provide the binaryPath so Windows knows how to execute our service
         try:
+            # Create the full binary path that tells Windows how to run our service
+            service_script = str(Path(__file__).resolve())
+            binary_path = f'"{python_exe}" "{service_script}"'
+
+            # Debug log the binary path
+            try:
+                with open(debug_log_path, "a", encoding="utf-8") as f:
+                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    f.write(f"[{timestamp}] Service script path: {service_script}\n")
+                    f.write(f"[{timestamp}] Binary path: {binary_path}\n")
+                    f.flush()
+            except Exception:
+                pass
+
             win32serviceutil.InstallService(  # type: ignore
                 service_class_string,
                 service_name,
                 service_display_name,
                 startType=win32service.SERVICE_AUTO_START,  # type: ignore
+                binaryPath=binary_path,
             )
         except Exception as e:
             # Debug log installation error
@@ -524,6 +540,40 @@ def main() -> NoReturn:
     """Main entry point for service module."""
     import argparse
 
+    # Debug log main entry
+    try:
+        debug_log_path = Path("C:/temp/yk-daemon-debug.log")
+        with open(debug_log_path, "a", encoding="utf-8") as f:
+            from datetime import datetime
+
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            f.write(f"[{timestamp}] === MAIN ENTRY POINT ===\n")
+            f.write(f"[{timestamp}] sys.argv: {sys.argv}\n")
+            f.write(f"[{timestamp}] About to check if called by Windows service\n")
+            f.flush()
+    except Exception:
+        pass
+
+    # Check if we're being called by Windows Service Manager
+    # Windows service manager passes specific arguments like 'service_name'
+    if len(sys.argv) > 1 and not sys.argv[1].startswith("--"):
+        # This looks like a Windows service call, delegate to HandleCommandLine
+        if WINDOWS_SERVICE_AVAILABLE:
+            try:
+                with open(debug_log_path, "a", encoding="utf-8") as f:
+                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    f.write(
+                        f"[{timestamp}] Windows service call detected, calling HandleCommandLine\n"
+                    )
+                    f.flush()
+            except Exception:
+                pass
+            win32serviceutil.HandleCommandLine(YubiKeyDaemonService)  # type: ignore
+        else:
+            print("ERROR: Windows service functionality is not available")
+            sys.exit(1)
+
+    # Parse our custom arguments for service management
     parser = argparse.ArgumentParser(
         description="YubiKey Daemon Windows Service Management",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -557,7 +607,21 @@ Examples:
         help="Path to configuration file (used during installation)",
     )
 
-    args = parser.parse_args()
+    try:
+        args = parser.parse_args()
+    except SystemExit:
+        # If argument parsing fails, might be Windows service arguments
+        if WINDOWS_SERVICE_AVAILABLE:
+            try:
+                with open(debug_log_path, "a", encoding="utf-8") as f:
+                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    f.write(f"[{timestamp}] Argument parsing failed, trying HandleCommandLine\n")
+                    f.flush()
+            except Exception:
+                pass
+            win32serviceutil.HandleCommandLine(YubiKeyDaemonService)  # type: ignore
+        else:
+            raise
 
     # Ensure Windows service functionality is available
     if any([args.install, args.start, args.stop, args.remove, args.status]):
@@ -580,9 +644,15 @@ Examples:
         status = get_service_status()
         print(f"Service status: {status}")
     else:
-        # No arguments provided, try to run as service
+        # No arguments provided, delegate to Windows service handler
         if WINDOWS_SERVICE_AVAILABLE:
-            # This is called when Windows starts the service
+            try:
+                with open(debug_log_path, "a", encoding="utf-8") as f:
+                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    f.write(f"[{timestamp}] No arguments provided, calling HandleCommandLine\n")
+                    f.flush()
+            except Exception:
+                pass
             win32serviceutil.HandleCommandLine(YubiKeyDaemonService)  # type: ignore
         else:
             parser.print_help()
