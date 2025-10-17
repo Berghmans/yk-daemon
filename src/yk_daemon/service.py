@@ -12,7 +12,7 @@ import time
 from pathlib import Path
 from typing import NoReturn
 
-from yk_daemon.config import ConfigurationError, load_config
+from yk_daemon.config import Config, ConfigurationError, load_config
 from yk_daemon.daemon import setup_logging
 
 # Only import Windows-specific modules on Windows
@@ -44,7 +44,7 @@ logger = logging.getLogger(__name__)
 
 if WINDOWS_SERVICE_AVAILABLE:
 
-    class YubiKeyDaemonService(win32serviceutil.ServiceFramework):
+    class YubiKeyDaemonService(win32serviceutil.ServiceFramework):  # type: ignore
         """Windows Service class for YubiKey Daemon."""
 
         # Service configuration
@@ -55,7 +55,7 @@ if WINDOWS_SERVICE_AVAILABLE:
             "through REST API and TCP socket interfaces."
         )
 
-        def __init__(self, args):
+        def __init__(self, args: list) -> None:
             """Initialize the service.
 
             Args:
@@ -64,8 +64,8 @@ if WINDOWS_SERVICE_AVAILABLE:
             if not WINDOWS_SERVICE_AVAILABLE:
                 raise RuntimeError("Windows service functionality is not available")
 
-            win32serviceutil.ServiceFramework.__init__(self, args)
-            self.hWaitStop = win32event.CreateEvent(None, 0, 0, None)
+            win32serviceutil.ServiceFramework.__init__(self, args)  # type: ignore
+            self.hWaitStop = win32event.CreateEvent(None, 0, 0, None)  # type: ignore
             self.is_alive = True
             self.config_path = self._get_config_path()
 
@@ -89,23 +89,23 @@ if WINDOWS_SERVICE_AVAILABLE:
             # Fallback to default
             return "config.json"
 
-        def SvcStop(self):
+        def SvcStop(self) -> None:
             """Handle service stop request."""
             try:
-                self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
+                self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)  # type: ignore
                 logger.info("Service stop requested")
-                win32event.SetEvent(self.hWaitStop)
+                win32event.SetEvent(self.hWaitStop)  # type: ignore
                 self.is_alive = False
             except Exception as e:
                 logger.error(f"Error during service stop: {e}")
 
-        def SvcDoRun(self):
+        def SvcDoRun(self) -> None:
             """Main service execution method."""
             try:
                 # Log service start
-                servicemanager.LogMsg(
-                    servicemanager.EVENTLOG_INFORMATION_TYPE,
-                    servicemanager.PYS_SERVICE_STARTED,
+                servicemanager.LogMsg(  # type: ignore
+                    servicemanager.EVENTLOG_INFORMATION_TYPE,  # type: ignore
+                    servicemanager.PYS_SERVICE_STARTED,  # type: ignore
                     (self._svc_name_, ""),
                 )
                 logger.info("YubiKey Daemon service starting...")
@@ -117,12 +117,12 @@ if WINDOWS_SERVICE_AVAILABLE:
                 except ConfigurationError as e:
                     error_msg = f"Configuration error: {e}"
                     logger.error(error_msg)
-                    servicemanager.LogErrorMsg(error_msg)
+                    servicemanager.LogErrorMsg(error_msg)  # type: ignore
                     return
                 except Exception as e:
                     error_msg = f"Failed to load configuration: {e}"
                     logger.error(error_msg)
-                    servicemanager.LogErrorMsg(error_msg)
+                    servicemanager.LogErrorMsg(error_msg)  # type: ignore
                     return
 
                 # Setup logging for service mode
@@ -140,8 +140,8 @@ if WINDOWS_SERVICE_AVAILABLE:
                 # Wait for stop signal or daemon thread to finish
                 while self.is_alive and daemon_thread.is_alive():
                     # Wait for stop event with timeout
-                    result = win32event.WaitForSingleObject(self.hWaitStop, 1000)
-                    if result == win32event.WAIT_OBJECT_0:
+                    result = win32event.WaitForSingleObject(self.hWaitStop, 1000)  # type: ignore
+                    if result == win32event.WAIT_OBJECT_0:  # type: ignore
                         # Stop event was signaled
                         logger.info("Service stop event received")
                         break
@@ -158,18 +158,18 @@ if WINDOWS_SERVICE_AVAILABLE:
                     logger.warning("Daemon thread did not finish within timeout")
 
                 logger.info("YubiKey Daemon service stopped")
-                servicemanager.LogMsg(
-                    servicemanager.EVENTLOG_INFORMATION_TYPE,
-                    servicemanager.PYS_SERVICE_STOPPED,
+                servicemanager.LogMsg(  # type: ignore
+                    servicemanager.EVENTLOG_INFORMATION_TYPE,  # type: ignore
+                    servicemanager.PYS_SERVICE_STOPPED,  # type: ignore
                     (self._svc_name_, ""),
                 )
 
             except Exception as e:
                 error_msg = f"Service execution error: {e}"
                 logger.error(error_msg, exc_info=True)
-                servicemanager.LogErrorMsg(error_msg)
+                servicemanager.LogErrorMsg(error_msg)  # type: ignore
 
-        def _run_daemon_wrapper(self, config):
+        def _run_daemon_wrapper(self, config: Config) -> None:
             """Wrapper to run daemon with proper exception handling.
 
             Args:
@@ -188,7 +188,7 @@ if WINDOWS_SERVICE_AVAILABLE:
                 self.is_alive = False
 else:
     # Create a placeholder class for non-Windows systems
-    class YubiKeyDaemonService:
+    class YubiKeyDaemonService:  # type: ignore
         """Placeholder service class for non-Windows systems."""
 
         _svc_name_ = "YubiKeyDaemon"
@@ -211,30 +211,30 @@ def install_service(config_path: str = "config.json") -> bool:
         return False
 
     try:
-        # Get the path to the current Python executable and script
+        # Get the path to the current Python executable (for logging purposes)
         python_exe = sys.executable
-        script_path = Path(__file__).resolve()
 
         # Service installation parameters
         service_class = YubiKeyDaemonService
         service_name = service_class._svc_name_
         service_display_name = service_class._svc_display_name_
-        service_description = service_class._svc_description_
+
+        # Build service class string
+        service_class_string = f"{service_class.__module__}.{service_class.__name__}"
 
         print(f"Installing Windows service: {service_display_name}")
         print(f"Service name: {service_name}")
+        print(f"Service class: {service_class_string}")
         print(f"Python executable: {python_exe}")
-        print(f"Script path: {script_path}")
         print(f"Config path: {config_path}")
 
         # Install the service
-        win32serviceutil.InstallService(
-            python_exe,
-            service_class,
+        # The correct signature is: InstallService(serviceClassString, serviceName, displayName, startType)
+        win32serviceutil.InstallService(  # type: ignore
+            service_class_string,
             service_name,
-            displayName=service_display_name,
-            description=service_description,
-            startType=win32service.SERVICE_AUTO_START,  # Auto-start on boot
+            service_display_name,
+            startType=win32service.SERVICE_AUTO_START,  # type: ignore
         )
 
         print(f"Service '{service_display_name}' installed successfully")
@@ -268,7 +268,7 @@ def remove_service() -> bool:
 
         # Stop the service first if it's running
         try:
-            win32serviceutil.StopService(service_name)
+            win32serviceutil.StopService(service_name)  # type: ignore
             print("Service stopped")
             time.sleep(2)  # Give it time to stop
         except Exception:
@@ -276,7 +276,7 @@ def remove_service() -> bool:
             pass
 
         # Remove the service
-        win32serviceutil.RemoveService(service_name)
+        win32serviceutil.RemoveService(service_name)  # type: ignore
         print(f"Service '{service_display_name}' removed successfully")
         return True
 
@@ -300,7 +300,7 @@ def start_service() -> bool:
         service_display_name = YubiKeyDaemonService._svc_display_name_
 
         print(f"Starting Windows service: {service_display_name}")
-        win32serviceutil.StartService(service_name)
+        win32serviceutil.StartService(service_name)  # type: ignore
         print(f"Service '{service_display_name}' started successfully")
         return True
 
@@ -324,7 +324,7 @@ def stop_service() -> bool:
         service_display_name = YubiKeyDaemonService._svc_display_name_
 
         print(f"Stopping Windows service: {service_display_name}")
-        win32serviceutil.StopService(service_name)
+        win32serviceutil.StopService(service_name)  # type: ignore
         print(f"Service '{service_display_name}' stopped successfully")
         return True
 
@@ -344,17 +344,17 @@ def get_service_status() -> str:
 
     try:
         service_name = YubiKeyDaemonService._svc_name_
-        status = win32serviceutil.QueryServiceStatus(service_name)
+        status = win32serviceutil.QueryServiceStatus(service_name)  # type: ignore
         status_code = status[1]
 
         status_map = {
-            win32service.SERVICE_STOPPED: "Stopped",
-            win32service.SERVICE_START_PENDING: "Start Pending",
-            win32service.SERVICE_STOP_PENDING: "Stop Pending",
-            win32service.SERVICE_RUNNING: "Running",
-            win32service.SERVICE_CONTINUE_PENDING: "Continue Pending",
-            win32service.SERVICE_PAUSE_PENDING: "Pause Pending",
-            win32service.SERVICE_PAUSED: "Paused",
+            win32service.SERVICE_STOPPED: "Stopped",  # type: ignore
+            win32service.SERVICE_START_PENDING: "Start Pending",  # type: ignore
+            win32service.SERVICE_STOP_PENDING: "Stop Pending",  # type: ignore
+            win32service.SERVICE_RUNNING: "Running",  # type: ignore
+            win32service.SERVICE_CONTINUE_PENDING: "Continue Pending",  # type: ignore
+            win32service.SERVICE_PAUSE_PENDING: "Pause Pending",  # type: ignore
+            win32service.SERVICE_PAUSED: "Paused",  # type: ignore
         }
 
         return status_map.get(status_code, f"Unknown ({status_code})")
@@ -426,7 +426,7 @@ Examples:
         # No arguments provided, try to run as service
         if WINDOWS_SERVICE_AVAILABLE:
             # This is called when Windows starts the service
-            win32serviceutil.HandleCommandLine(YubiKeyDaemonService)
+            win32serviceutil.HandleCommandLine(YubiKeyDaemonService)  # type: ignore
         else:
             parser.print_help()
             sys.exit(1)
