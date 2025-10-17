@@ -23,7 +23,7 @@ mypy = "^1.14.0"
 requests = "^2.32.5"
 
 [tool.poetry.scripts]
-yk-daemon = "src.service:main"
+yk-daemon = "src.daemon:main"
 
 [build-system]
 requires = ["poetry-core"]
