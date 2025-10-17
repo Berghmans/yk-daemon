@@ -27,7 +27,6 @@ share/python-wheels/
 MANIFEST
 
 # Poetry
-poetry.lock
 .poetry/
 
 # PyInstaller
