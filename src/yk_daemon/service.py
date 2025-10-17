@@ -318,17 +318,21 @@ if WINDOWS_SERVICE_AVAILABLE:
     # Handle the case where Windows imports this module directly for service startup
     # This happens when pythonservice.exe loads the module instead of executing the script
     # We detect this by checking if we're NOT being called with our standard command-line args
-    if not any(arg.startswith("--") for arg in sys.argv[1:]) and not any(
+    # or if this appears to be a Windows service process launch
+    is_manual_command = any(arg.startswith("--") for arg in sys.argv[1:]) and any(
         "yk-daemon" in arg for arg in sys.argv
-    ):
+    )
+
+    if not is_manual_command:
         try:
             with open(debug_log_path, "a", encoding="utf-8") as f:
                 timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 f.write(f"[{timestamp}] === MODULE-LEVEL SERVICE STARTUP ===\n")
                 f.write(
-                    f"[{timestamp}] Windows imported module for service, calling HandleCommandLine\n"
+                    f"[{timestamp}] Windows service process detected, calling HandleCommandLine\n"
                 )
                 f.write(f"[{timestamp}] Detected sys.argv: {sys.argv}\n")
+                f.write(f"[{timestamp}] is_manual_command: {is_manual_command}\n")
                 f.flush()
         except Exception:
             pass
