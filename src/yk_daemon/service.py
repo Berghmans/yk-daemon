@@ -315,6 +315,27 @@ if WINDOWS_SERVICE_AVAILABLE:
         except Exception:
             pass
 
+    # Handle the case where Windows imports this module directly for service startup
+    # This happens when pythonservice.exe loads the module instead of executing the script
+    # We detect this by checking if we're NOT being called with our standard command-line args
+    if not any(arg.startswith("--") for arg in sys.argv[1:]) and not any(
+        "yk-daemon" in arg for arg in sys.argv
+    ):
+        try:
+            with open(debug_log_path, "a", encoding="utf-8") as f:
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                f.write(f"[{timestamp}] === MODULE-LEVEL SERVICE STARTUP ===\n")
+                f.write(
+                    f"[{timestamp}] Windows imported module for service, calling HandleCommandLine\n"
+                )
+                f.write(f"[{timestamp}] Detected sys.argv: {sys.argv}\n")
+                f.flush()
+        except Exception:
+            pass
+
+        # This is the module-level service startup path used by pythonservice.exe
+        win32serviceutil.HandleCommandLine(YubiKeyDaemonService)  # type: ignore
+
 else:
     # Create a placeholder class for non-Windows systems
     class YubiKeyDaemonService:  # type: ignore
@@ -458,12 +479,47 @@ def start_service() -> bool:
         service_name = YubiKeyDaemonService._svc_name_
         service_display_name = YubiKeyDaemonService._svc_display_name_
 
+        # Debug log the start attempt
+        try:
+            debug_log_path = Path("C:/temp/yk-daemon-debug.log")
+            with open(debug_log_path, "a", encoding="utf-8") as f:
+                from datetime import datetime
+
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                f.write(f"[{timestamp}] === STARTING WINDOWS SERVICE ===\n")
+                f.write(f"[{timestamp}] Service name: {service_name}\n")
+                f.write(f"[{timestamp}] About to call StartService()\n")
+                f.flush()
+        except Exception:
+            pass
+
         print(f"Starting Windows service: {service_display_name}")
         win32serviceutil.StartService(service_name)  # type: ignore
+
+        # Debug log successful start call
+        try:
+            with open(debug_log_path, "a", encoding="utf-8") as f:
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                f.write(f"[{timestamp}] StartService() call completed successfully\n")
+                f.write(f"[{timestamp}] Windows should now be starting the service process\n")
+                f.flush()
+        except Exception:
+            pass
+
         print(f"Service '{service_display_name}' started successfully")
         return True
 
     except Exception as e:
+        # Debug log start failure
+        try:
+            debug_log_path = Path("C:/temp/yk-daemon-debug.log")
+            with open(debug_log_path, "a", encoding="utf-8") as f:
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                f.write(f"[{timestamp}] StartService() FAILED: {e}\n")
+                f.flush()
+        except Exception:
+            pass
+
         print(f"ERROR: Failed to start service: {e}")
         return False
 
