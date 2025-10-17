@@ -6,6 +6,7 @@ through configuration.
 """
 
 import logging
+import os
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -22,6 +23,8 @@ except ImportError:
     logger.warning("plyer not available - popup notifications will be disabled")
 
 try:
+    # Suppress pygame's "hello from pygame" message
+    os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
     import pygame
 
     _PYGAME_AVAILABLE = True
