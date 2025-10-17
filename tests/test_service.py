@@ -44,8 +44,8 @@ class TestServiceModule(unittest.TestCase):
         from yk_daemon.service import YubiKeyDaemonService
 
         # These should exist regardless of platform
-        self.assertEqual(YubiKeyDaemonService._svc_name_, "YubiKeyDaemon")
-        self.assertEqual(YubiKeyDaemonService._svc_display_name_, "YubiKey Daemon")
+        self.assertEqual(YubiKeyDaemonService._svc_name_, "YubiKeyDaemonService")
+        self.assertEqual(YubiKeyDaemonService._svc_display_name_, "YubiKey Daemon Service")
         self.assertIsInstance(YubiKeyDaemonService._svc_description_, str)
 
 

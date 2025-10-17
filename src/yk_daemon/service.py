@@ -48,8 +48,8 @@ if WINDOWS_SERVICE_AVAILABLE:
         """Windows Service class for YubiKey Daemon."""
 
         # Service configuration
-        _svc_name_ = "YubiKeyDaemon"
-        _svc_display_name_ = "YubiKey Daemon"
+        _svc_name_ = "YubiKeyDaemonService"
+        _svc_display_name_ = "YubiKey Daemon Service"
         _svc_description_ = (
             "Bridges YubiKey OATH-TOTP functionality to WSL and other local applications "
             "through REST API and TCP socket interfaces."
@@ -195,8 +195,8 @@ else:
     class YubiKeyDaemonService:  # type: ignore
         """Placeholder service class for non-Windows systems."""
 
-        _svc_name_ = "YubiKeyDaemon"
-        _svc_display_name_ = "YubiKey Daemon"
+        _svc_name_ = "YubiKeyDaemonService"
+        _svc_display_name_ = "YubiKey Daemon Service"
         _svc_description_ = "Not available on non-Windows systems"
 
 
@@ -245,8 +245,8 @@ def install_service(config_path: str = "config.json") -> bool:
         print("The service will start automatically on system boot")
         print("You can also start it manually using:")
         print(f"  sc start {service_name}")
-        print(f"  or: net start {service_name}")
-        print("  or: python -m yk_daemon.service --start")
+        print(f'  or: net start "{service_display_name}"')
+        print("  or: poetry run yk-daemon --start")
         return True
 
     except Exception as e:
