@@ -1,5 +1,7 @@
 # YubiKey Daemon (yk-daemon)
 
+[![CI](https://github.com/Berghmans/yk-daemon/actions/workflows/ci.yml/badge.svg)](https://github.com/Berghmans/yk-daemon/actions/workflows/ci.yml)
+
 A Windows daemon/service that provides YubiKey OATH-TOTP access to WSL (Windows Subsystem for Linux) and other local applications via REST API and socket interfaces.
 
 ## Problem Statement
@@ -396,7 +398,59 @@ Contributions are welcome! Please:
 1. Fork the repository
 2. Create a feature branch
 3. Write tests for new functionality
-4. Submit a pull request
+4. Follow conventional commit format (see below)
+5. Submit a pull request
+
+### Conventional Commits
+
+This project uses [Conventional Commits](https://www.conventionalcommits.org/) for automated versioning and changelog generation. Format your commit messages as:
+
+```
+<type>: <description>
+
+[optional body]
+
+[optional footer]
+```
+
+**Types:**
+- `feat:` - New feature (minor version bump)
+- `fix:` - Bug fix (patch version bump)
+- `feat!:` or `BREAKING CHANGE:` - Breaking change (major version bump)
+- `docs:` - Documentation only
+- `chore:` - Maintenance tasks
+- `test:` - Test additions or changes
+- `refactor:` - Code refactoring
+
+**Examples:**
+```bash
+feat: add REST API for TOTP generation
+fix: handle YubiKey disconnect during operation
+docs: update API documentation with examples
+```
+
+## Release Process
+
+This project uses automated releases via GitHub Actions and [release-please](https://github.com/googleapis/release-please):
+
+1. **Development**: Make changes and commit using conventional commit format
+2. **Merge to main**: When commits are merged to main, release-please analyzes them
+3. **Release PR**: If releasable commits exist, release-please creates/updates a Release PR with:
+   - Version bump in `pyproject.toml`
+   - Updated `CHANGELOG.md`
+   - Release notes
+4. **Release**: When the Release PR is merged, GitHub Actions automatically:
+   - Builds distribution packages with Poetry
+   - Creates a GitHub release with changelog
+   - Uploads wheel and sdist artifacts
+   - Tags the release
+
+### Version Bumping Rules
+
+- `feat:` commits trigger a **minor** version bump (0.1.0 → 0.2.0)
+- `fix:` commits trigger a **patch** version bump (0.1.0 → 0.1.1)
+- `feat!:` or commits with `BREAKING CHANGE:` trigger a **major** version bump (0.1.0 → 1.0.0)
+- Other commit types (`docs:`, `chore:`, etc.) are included in changelog but don't bump version
 
 ## License
 
