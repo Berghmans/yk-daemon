@@ -211,10 +211,36 @@ send_socket_command() {
     local command="$1"
     local timeout="${2:-30}"
 
-    if ! response=$(echo "$command" | timeout "$timeout" nc "$HOST" "$SOCKET_PORT" 2>/dev/null); then
+    # Fast approach: try the most likely working netcat syntax first
+    local response=""
+    local nc_cmd=""
+
+    # Determine best netcat command based on what works
+    # Most WSL/Linux systems use netcat-openbsd which supports -q
+    if nc -q 1 -w 2 "$HOST" "$SOCKET_PORT" </dev/null >/dev/null 2>&1; then
+        # OpenBSD netcat with quick quit and connection timeout
+        nc_cmd="nc -q 1 -w 2"
+    elif nc -w 2 "$HOST" "$SOCKET_PORT" </dev/null >/dev/null 2>&1; then
+        # GNU netcat with connection timeout
+        nc_cmd="nc -w 2"
+    else
+        # Basic netcat fallback
+        nc_cmd="nc"
+    fi
+
+    # Send command with optimized timeout
+    if command -v timeout >/dev/null 2>&1; then
+        response=$(printf "%s\n" "$command" | timeout "$timeout" $nc_cmd "$HOST" "$SOCKET_PORT" 2>/dev/null)
+    else
+        response=$(printf "%s\n" "$command" | $nc_cmd "$HOST" "$SOCKET_PORT" 2>/dev/null)
+    fi
+
+    # Check result
+    if [ $? -ne 0 ] || [ -z "$response" ]; then
         print_error "Failed to connect to socket server at $HOST:$SOCKET_PORT"
         print_info "Make sure the YubiKey Daemon socket server is running:"
         print_info "  poetry run python -m src.socket_server"
+        print_info "Debug: Try manually testing with: echo '$command' | $nc_cmd $HOST $SOCKET_PORT"
         return 1
     fi
 
@@ -232,6 +258,7 @@ send_socket_command() {
         return 1
     else
         print_error "Invalid response format: $response"
+        print_info "Raw response: '$response'"
         return 1
     fi
 }
@@ -300,12 +327,19 @@ test_rest_api() {
 
     echo
 
-    # Get TOTP
-    if ! test_rest_get_totp "$ACCOUNT"; then
-        ((failed++))
+    # Only get TOTP if a specific account was requested
+    if [ -n "$ACCOUNT" ]; then
+        # Get TOTP for specific account
+        if ! test_rest_get_totp "$ACCOUNT"; then
+            ((failed++))
+        fi
+        echo
+    else
+        print_info "Skipping TOTP test (no --account specified)"
+        print_info "To test TOTP generation, use: --account <account_name>"
+        echo
     fi
 
-    echo
     if [ $failed -eq 0 ]; then
         print_success "All REST API tests passed!"
     else
@@ -329,12 +363,19 @@ test_socket_server() {
 
     echo
 
-    # Get TOTP
-    if ! test_socket_get_totp "$ACCOUNT"; then
-        ((failed++))
+    # Only get TOTP if a specific account was requested
+    if [ -n "$ACCOUNT" ]; then
+        # Get TOTP for specific account
+        if ! test_socket_get_totp "$ACCOUNT"; then
+            ((failed++))
+        fi
+        echo
+    else
+        print_info "Skipping TOTP test (no --account specified)"
+        print_info "To test TOTP generation, use: --account <account_name>"
+        echo
     fi
 
-    echo
     if [ $failed -eq 0 ]; then
         print_success "All socket server tests passed!"
     else
@@ -354,18 +395,23 @@ show_help() {
     echo "  --host HOST         API/socket host (default: 127.0.0.1)"
     echo "  --rest-port PORT    REST API port (default: 5000)"
     echo "  --socket-port PORT  Socket server port (default: 5001)"
-    echo "  --account ACCOUNT   Specific account name for TOTP"
+    echo "  --account ACCOUNT   Specific account name for TOTP (optional)"
     echo "  --rest-only         Only test REST API"
     echo "  --socket-only       Only test socket server"
     echo "  --interactive       Interactive socket mode"
     echo "  --help              Show this help message"
     echo
     echo "Examples:"
-    echo "  $0                    # Test both REST API and socket"
-    echo "  $0 --rest-only        # Test only REST API"
-    echo "  $0 --socket-only      # Test only socket server"
-    echo "  $0 --account GitHub   # Get TOTP for specific account"
-    echo "  $0 --interactive      # Interactive socket session"
+    echo "  $0                           # Test connectivity only (no TOTP)"
+    echo "  $0 --rest-only               # Test only REST API connectivity"
+    echo "  $0 --socket-only             # Test only socket server connectivity"
+    echo "  $0 --account GitHub          # Test connectivity AND get TOTP for GitHub"
+    echo "  $0 --interactive             # Interactive socket session"
+    echo "  $0 --host 172.25.144.1       # Use custom host (e.g., for WSL)"
+    echo
+    echo "Note:"
+    echo "  TOTP generation only occurs when --account is specified to avoid"
+    echo "  unwanted YubiKey touch prompts and notification sounds."
     echo
     echo "Prerequisites:"
     echo "  - YubiKey connected and configured with OATH accounts"
