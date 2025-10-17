@@ -319,9 +319,22 @@ if WINDOWS_SERVICE_AVAILABLE:
     # This happens when pythonservice.exe loads the module instead of executing the script
     # We detect this by checking if we're NOT being called with our standard command-line args
     # or if this appears to be a Windows service process launch
-    is_manual_command = any(arg.startswith("--") for arg in sys.argv[1:]) and any(
-        "yk-daemon" in arg for arg in sys.argv
-    )
+    has_dash_args = any(arg.startswith("--") for arg in sys.argv[1:])
+    has_yk_daemon = any("yk-daemon" in arg for arg in sys.argv)
+    is_manual_command = has_dash_args and has_yk_daemon
+
+    # Always log the detection logic for debugging
+    try:
+        with open(debug_log_path, "a", encoding="utf-8") as f:
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            f.write(f"[{timestamp}] === MODULE-LEVEL DETECTION ===\n")
+            f.write(f"[{timestamp}] sys.argv: {sys.argv}\n")
+            f.write(f"[{timestamp}] has_dash_args: {has_dash_args}\n")
+            f.write(f"[{timestamp}] has_yk_daemon: {has_yk_daemon}\n")
+            f.write(f"[{timestamp}] is_manual_command: {is_manual_command}\n")
+            f.flush()
+    except Exception:
+        pass
 
     if not is_manual_command:
         try:
@@ -331,8 +344,6 @@ if WINDOWS_SERVICE_AVAILABLE:
                 f.write(
                     f"[{timestamp}] Windows service process detected, calling HandleCommandLine\n"
                 )
-                f.write(f"[{timestamp}] Detected sys.argv: {sys.argv}\n")
-                f.write(f"[{timestamp}] is_manual_command: {is_manual_command}\n")
                 f.flush()
         except Exception:
             pass
@@ -401,15 +412,19 @@ def install_service(config_path: str = "config.json") -> bool:
         except Exception:
             pass
 
-        # Install the service
-        # The correct signature is: InstallService(serviceClassString, serviceName, displayName, startType)
+        # Install the service using the standard Python service installation method
         try:
+            # This installs the service with pythonservice.exe as the executable
+            # which will then import and run our service class
+            # We specify the Python executable to ensure it uses our virtual environment
             win32serviceutil.InstallService(  # type: ignore
                 service_class_string,
                 service_name,
                 service_display_name,
                 startType=win32service.SERVICE_AUTO_START,  # type: ignore
+                exeName=python_exe,  # Use our virtual environment Python
             )
+
         except Exception as e:
             # Debug log installation error
             try:
