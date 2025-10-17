@@ -4,9 +4,13 @@
 This module provides Windows service functionality allowing the daemon
 to run as a background Windows service that can be managed via Services.msc
 and automatically start on system boot.
+
+Uses multiprocessing.Process and registers python.exe directly for proper
+virtual environment support.
 """
 
 import logging
+import os
 import sys
 import time
 
@@ -16,29 +20,102 @@ from yk_daemon.daemon import setup_logging
 # Only import Windows-specific modules on Windows
 if sys.platform == "win32":
     try:
+        import multiprocessing
+
         import win32event
         import win32service
         import win32serviceutil
 
+        try:
+            import servicemanager
+
+            SERVICEMANAGER_AVAILABLE = True
+        except ImportError:
+            servicemanager = None
+            SERVICEMANAGER_AVAILABLE = False
+
         WINDOWS_SERVICE_AVAILABLE = True
     except ImportError:
         WINDOWS_SERVICE_AVAILABLE = False
+        SERVICEMANAGER_AVAILABLE = False
+        multiprocessing = None
         win32serviceutil = None
         win32service = None
         win32event = None
+        servicemanager = None
 else:
     WINDOWS_SERVICE_AVAILABLE = False
+    SERVICEMANAGER_AVAILABLE = False
+    multiprocessing = None
     win32serviceutil = None
     win32service = None
     win32event = None
+    servicemanager = None
 
 logger = logging.getLogger(__name__)
+
+
+def run_daemon_process() -> None:
+    """Run daemon in a separate process (called via multiprocessing)."""
+    try:
+        # Load configuration
+        config = load_config("config.json")
+
+        # Setup logging
+        setup_logging(config, debug=False)
+        logger.info("YubiKey Daemon process starting...")
+
+        # Import and start daemon components
+        from yk_daemon.daemon import shutdown_event, start_rest_api, start_socket_server
+        from yk_daemon.notifications import create_notifier_from_config
+        from yk_daemon.yubikey import YubiKeyInterface
+
+        # Initialize components
+        notifier = create_notifier_from_config(config.notifications)
+        yubikey = YubiKeyInterface(notifier=notifier)
+
+        # Start servers
+        rest_thread = None
+        socket_server = None
+
+        if config.rest_api.enabled:
+            rest_thread = start_rest_api(config, yubikey)
+
+        if config.socket.enabled:
+            socket_server = start_socket_server(config, yubikey)
+
+        logger.info("Daemon started successfully")
+
+        # Wait for shutdown signal (process will be terminated by service)
+        while not shutdown_event.is_set():
+            shutdown_event.wait(timeout=1.0)
+
+        # Cleanup
+        logger.info("Daemon shutting down...")
+
+        if socket_server and socket_server.is_running():
+            socket_server.stop()
+
+        if rest_thread and rest_thread.is_alive():
+            rest_thread.join(timeout=2.0)
+
+        if notifier:
+            notifier.cleanup()
+
+        logger.info("Daemon stopped")
+
+    except (ConfigurationError, Exception) as e:
+        logger.error(f"Daemon process error: {e}", exc_info=True)
 
 
 if WINDOWS_SERVICE_AVAILABLE:
 
     class YubiKeyDaemonService(win32serviceutil.ServiceFramework):  # type: ignore
-        """Windows Service class for YubiKey Daemon."""
+        """Windows Service class for YubiKey Daemon.
+
+        Uses multiprocessing.Process and registers python.exe directly
+        for proper virtual environment support.
+        """
 
         # Service configuration
         _svc_name_ = "YubiKeyDaemonService"
@@ -48,6 +125,12 @@ if WINDOWS_SERVICE_AVAILABLE:
             "through REST API and TCP socket interfaces."
         )
 
+        # Use python.exe from virtual environment instead of pythonservice.exe
+        _exe_name_ = sys.executable  # Points to venv's python.exe
+        _exe_args_ = f'-u -E "{os.path.abspath(__file__)}"'
+
+        proc = None
+
         def __init__(self, args: list) -> None:
             """Initialize the service.
 
@@ -55,89 +138,35 @@ if WINDOWS_SERVICE_AVAILABLE:
                 args: Service arguments
             """
             win32serviceutil.ServiceFramework.__init__(self, args)  # type: ignore
-            self.stop_event = win32event.CreateEvent(None, 0, 0, None)  # type: ignore
-            self.is_alive = True
 
         def SvcStop(self) -> None:
             """Handle service stop request."""
             self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)  # type: ignore
-            logger.info("Service stop requested")
-            win32event.SetEvent(self.stop_event)  # type: ignore
-            self.is_alive = False
 
-        def SvcDoRun(self) -> None:
-            """Main service execution method."""
-            # Report running FIRST before doing anything else
+            # Terminate the daemon process
+            if self.proc:
+                self.proc.terminate()
+                self.proc.join(timeout=10.0)
+
+        def SvcRun(self) -> None:
+            """Service run method - starts daemon process."""
+            # Start daemon in separate process
+            self.proc = multiprocessing.Process(target=run_daemon_process)  # type: ignore
+            self.proc.start()
+
+            # Report running
             self.ReportServiceStatus(win32service.SERVICE_RUNNING)  # type: ignore
 
-            try:
-                # Load configuration
-                try:
-                    config = load_config("config.json")
-                except (ConfigurationError, Exception):
-                    # Can't log yet - logging not setup
-                    return
+            # Wait for process to finish
+            self.SvcDoRun()
 
-                # Setup logging BEFORE using logger
-                setup_logging(config, debug=False)
-                logger.info("YubiKey Daemon service starting...")
-                logger.info("Configuration loaded successfully")
+            # Report stopping
+            self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)  # type: ignore
 
-                # Import and start daemon components directly (not via run_daemon which calls sys.exit)
-                from yk_daemon.daemon import (
-                    shutdown_event,
-                    start_rest_api,
-                    start_socket_server,
-                )
-                from yk_daemon.notifications import create_notifier_from_config
-                from yk_daemon.yubikey import YubiKeyInterface
-
-                # Initialize components
-                notifier = create_notifier_from_config(config.notifications)
-                yubikey = YubiKeyInterface(notifier=notifier)
-
-                # Start servers
-                rest_thread = None
-                socket_server = None
-
-                if config.rest_api.enabled:
-                    rest_thread = start_rest_api(config, yubikey)
-
-                if config.socket.enabled:
-                    socket_server = start_socket_server(config, yubikey)
-
-                logger.info("Daemon started successfully")
-
-                # Wait for stop signal
-                while self.is_alive:
-                    result = win32event.WaitForSingleObject(self.stop_event, 1000)  # type: ignore
-                    if result == win32event.WAIT_OBJECT_0:  # type: ignore
-                        logger.info("Service stop event received")
-                        break
-
-                # Shutdown
-                logger.info("Stopping daemon...")
-                shutdown_event.set()
-
-                # Stop servers
-                if socket_server and socket_server.is_running():
-                    socket_server.stop()
-
-                if rest_thread and rest_thread.is_alive():
-                    rest_thread.join(timeout=2.0)
-
-                # Cleanup notifier
-                if notifier:
-                    notifier.cleanup()
-
-                logger.info("YubiKey Daemon service stopped")
-
-            except Exception as e:
-                # Try to log the error if logging is setup
-                try:
-                    logger.error(f"Service execution error: {e}", exc_info=True)
-                except Exception:
-                    pass  # Logging not available
+        def SvcDoRun(self) -> None:
+            """Wait for daemon process to finish."""
+            if self.proc:
+                self.proc.join()
 
 else:
     # Create a placeholder class for non-Windows systems
@@ -291,12 +320,54 @@ class ServiceManager:
             return f"Error querying status: {e}"
 
 
-if __name__ == "__main__":
-    # Standard pywin32 service entry point
-    # Windows Service Manager calls this when starting the service
-    if WINDOWS_SERVICE_AVAILABLE:
-        win32serviceutil.HandleCommandLine(YubiKeyDaemonService)  # type: ignore
-    else:
+def start() -> None:
+    """Entry point for service startup.
+
+    Detects how the script is being called:
+    - No args (len==1): Service manager startup - use servicemanager
+    - --fg: Foreground mode - run daemon directly
+    - Other args: Command-line service management
+    """
+    if not WINDOWS_SERVICE_AVAILABLE:
         print("ERROR: Windows service functionality is not available")
         print("This requires Windows and the pywin32 package to be installed")
         sys.exit(1)
+
+    if len(sys.argv) == 1:
+        # Called by Windows Service Manager
+        # This is the path when the service actually starts
+        if SERVICEMANAGER_AVAILABLE:
+            try:
+                import win32traceutil  # noqa: F401 - enables debug output
+            except ImportError:
+                pass  # win32traceutil is optional
+
+            servicemanager.Initialize()  # type: ignore
+            servicemanager.PrepareToHostSingle(YubiKeyDaemonService)  # type: ignore
+            servicemanager.StartServiceCtrlDispatcher()  # type: ignore
+        else:
+            # Fallback if servicemanager not available
+            win32serviceutil.HandleCommandLine(YubiKeyDaemonService)  # type: ignore
+
+    elif "--fg" in sys.argv:
+        # Foreground mode - run daemon directly (for testing)
+        print("Running in foreground mode...")
+        run_daemon_process()
+
+    else:
+        # Command-line service management (install/remove/start/stop)
+        win32serviceutil.HandleCommandLine(YubiKeyDaemonService)  # type: ignore
+
+
+if __name__ == "__main__":
+    # Protect multiprocessing entry point
+    multiprocessing.freeze_support() if multiprocessing else None  # type: ignore
+
+    try:
+        start()
+    except (SystemExit, KeyboardInterrupt):
+        raise
+    except Exception:
+        import traceback
+
+        traceback.print_exc()
