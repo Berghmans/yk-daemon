@@ -216,12 +216,17 @@ class ServiceManager:
             print(f"Installing Windows service: {self.service_display_name}")
             print(f"Service name: {self.service_name}")
             print(f"Config path: {config_path}")
+            print(f"Using Python: {sys.executable}")
+            print(f"Script: {os.path.abspath(__file__)}")
 
+            # Register python.exe directly instead of pythonservice.exe
             win32serviceutil.InstallService(  # type: ignore
                 self.service_class_string,
                 self.service_name,
                 self.service_display_name,
                 startType=win32service.SERVICE_AUTO_START,  # type: ignore
+                exeName=sys.executable,  # Use venv's python.exe
+                exeArgs=f'-u -E "{os.path.abspath(__file__)}"',  # Script to run
             )
 
             print(f"Service '{self.service_display_name}' installed successfully")
