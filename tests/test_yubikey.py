@@ -24,8 +24,11 @@ def yubikey_interface() -> YubiKeyInterface:
 def mock_device() -> Mock:
     """Create a mock YubiKey device."""
     device = Mock()
-    device.smart_card = Mock(return_value=Mock())
-    device.close = Mock()
+    mock_connection = Mock()
+    mock_connection.close = Mock()
+    device.open_connection = Mock(return_value=mock_connection)
+    # Store connection for test assertions
+    device._test_connection = mock_connection
     return device
 
 
@@ -62,6 +65,7 @@ class TestYubiKeyInterface:
     def test_init(self, yubikey_interface: YubiKeyInterface) -> None:
         """Test YubiKeyInterface initialization."""
         assert yubikey_interface._device is None
+        assert yubikey_interface._connection is None
         assert yubikey_interface._oath_session is None
 
     @patch("src.yubikey.list_all_devices")
@@ -148,7 +152,7 @@ class TestYubiKeyInterface:
         assert len(accounts) == 2
         assert "account1@example.com" in accounts
         assert "account2@example.com" in accounts
-        mock_device.close.assert_called_once()
+        mock_device._test_connection.close.assert_called_once()
 
     @patch("src.yubikey.list_all_devices")
     def test_list_accounts_no_device(
@@ -180,7 +184,7 @@ class TestYubiKeyInterface:
         with pytest.raises(DeviceRemovedError, match="Device error while listing accounts"):
             yubikey_interface.list_accounts()
 
-        mock_device.close.assert_called_once()
+        mock_device._test_connection.close.assert_called_once()
 
     @patch("src.yubikey.OathSession")
     @patch("src.yubikey.list_all_devices")
@@ -209,7 +213,7 @@ class TestYubiKeyInterface:
         result = yubikey_interface.generate_totp("test@example.com")
 
         assert result == "123456"
-        mock_device.close.assert_called_once()
+        mock_device._test_connection.close.assert_called_once()
 
     @patch("src.yubikey.OathSession")
     @patch("src.yubikey.list_all_devices")
@@ -248,7 +252,7 @@ class TestYubiKeyInterface:
         assert len(result) == 2
         assert result["account1@example.com"] == "123456"
         assert result["account2@example.com"] == "654321"
-        mock_device.close.assert_called_once()
+        mock_device._test_connection.close.assert_called_once()
 
     @patch("src.yubikey.OathSession")
     @patch("src.yubikey.list_all_devices")
@@ -275,7 +279,7 @@ class TestYubiKeyInterface:
         ):
             yubikey_interface.generate_totp("nonexistent@example.com")
 
-        mock_device.close.assert_called_once()
+        mock_device._test_connection.close.assert_called_once()
 
     @patch("src.yubikey.OathSession")
     @patch("src.yubikey.list_all_devices")
@@ -301,7 +305,7 @@ class TestYubiKeyInterface:
         with pytest.raises(TouchTimeoutError, match="YubiKey touch timeout"):
             yubikey_interface.generate_totp("test@example.com")
 
-        mock_device.close.assert_called_once()
+        mock_device._test_connection.close.assert_called_once()
 
     @patch("src.yubikey.OathSession")
     @patch("src.yubikey.list_all_devices")
@@ -323,7 +327,7 @@ class TestYubiKeyInterface:
         result = yubikey_interface.generate_totp()
 
         assert result == {}
-        mock_device.close.assert_called_once()
+        mock_device._test_connection.close.assert_called_once()
 
     @patch("src.yubikey.list_all_devices")
     def test_get_device_info_success(
@@ -374,7 +378,7 @@ class TestYubiKeyInterface:
             yubikey_interface.list_accounts()
 
         # Ensure disconnect was called even though an error occurred
-        mock_device.close.assert_called_once()
+        mock_device._test_connection.close.assert_called_once()
 
     @patch("src.yubikey.OathSession")
     @patch("src.yubikey.list_all_devices")
@@ -397,7 +401,7 @@ class TestYubiKeyInterface:
         mock_oath_session.return_value = mock_session_instance
 
         # Make close() raise an error
-        mock_device.close.side_effect = Exception("Close error")
+        mock_device._test_connection.close.side_effect = Exception("Close error")
 
         # Should not raise error, just log warning
         accounts = yubikey_interface.list_accounts()

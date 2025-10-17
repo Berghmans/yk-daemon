@@ -9,6 +9,7 @@ from enum import Enum
 from typing import Any
 
 from ykman.device import list_all_devices
+from yubikit.core.smartcard import SmartCardConnection
 from yubikit.oath import OathSession
 
 logger = logging.getLogger(__name__)
@@ -58,6 +59,7 @@ class YubiKeyInterface:
     def __init__(self) -> None:
         """Initialize the YubiKey interface."""
         self._device: Any = None
+        self._connection: Any = None
         self._oath_session: OathSession | None = None
         logger.info("YubiKey interface initialized")
 
@@ -102,8 +104,8 @@ class YubiKeyInterface:
 
             device, device_info = devices[0]
             self._device = device
-            connection = device.smart_card()
-            self._oath_session = OathSession(connection)
+            self._connection = device.open_connection(SmartCardConnection)
+            self._oath_session = OathSession(self._connection)
 
             logger.info(f"Connected to YubiKey: {device_info}")
         except DeviceNotFoundError:
@@ -114,15 +116,16 @@ class YubiKeyInterface:
 
     def _disconnect(self) -> None:
         """Disconnect from YubiKey device."""
-        if self._device:
+        if self._connection:
             try:
-                self._device.close()
+                self._connection.close()
                 logger.debug("Disconnected from YubiKey")
             except Exception as e:
                 logger.warning(f"Error during disconnect: {e}")
             finally:
-                self._device = None
+                self._connection = None
                 self._oath_session = None
+                self._device = None
 
     def list_accounts(self) -> list[str]:
         """List all OATH accounts on the YubiKey.
