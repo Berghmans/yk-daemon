@@ -101,56 +101,89 @@ if WINDOWS_SERVICE_AVAILABLE:
 
         def SvcDoRun(self) -> None:
             """Main service execution method."""
+            # Create a debug log file in a known location FIRST
+            debug_log_path = Path("C:/temp/yk-daemon-debug.log")
+            debug_log_path.parent.mkdir(exist_ok=True)
+
+            def debug_log(msg: str) -> None:
+                try:
+                    with open(debug_log_path, "a", encoding="utf-8") as f:
+                        from datetime import datetime
+
+                        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        f.write(f"[{timestamp}] {msg}\n")
+                        f.flush()
+                except Exception:
+                    pass  # Don't let debug logging break the service
+
+            debug_log("=== SERVICE STARTING ===")
+
             try:
+                debug_log("About to report SERVICE_RUNNING status")
                 # Report service as running FIRST to avoid timeout
                 self.ReportServiceStatus(win32service.SERVICE_RUNNING)  # type: ignore
+                debug_log("Successfully reported SERVICE_RUNNING status")
 
+                debug_log("About to log service start to Event Log")
                 # Log service start
                 servicemanager.LogMsg(  # type: ignore
                     servicemanager.EVENTLOG_INFORMATION_TYPE,  # type: ignore
                     servicemanager.PYS_SERVICE_STARTED,  # type: ignore
                     (self._svc_name_, ""),
                 )
+                debug_log("Successfully logged service start to Event Log")
+
                 logger.info("YubiKey Daemon service starting...")
                 logger.info("Service reported as running to Windows")
+                debug_log("Logger messages sent")
 
                 # Load configuration
+                debug_log("About to load configuration")
                 try:
                     config = load_config(self.config_path)
+                    debug_log(f"Configuration loaded successfully from: {self.config_path}")
                     logger.info(f"Configuration loaded from: {self.config_path}")
                 except ConfigurationError as e:
                     error_msg = f"Configuration error: {e}"
+                    debug_log(f"Configuration error: {error_msg}")
                     logger.error(error_msg)
                     servicemanager.LogErrorMsg(error_msg)  # type: ignore
                     # Don't return - keep service running but log the error
                     config = None
                 except Exception as e:
                     error_msg = f"Failed to load configuration: {e}"
+                    debug_log(f"Configuration loading failed: {error_msg}")
                     logger.error(error_msg)
                     servicemanager.LogErrorMsg(error_msg)  # type: ignore
                     # Don't return - keep service running but log the error
                     config = None
 
                 if config is None:
+                    debug_log("Config is None - entering wait loop")
                     logger.error("Service running with no configuration - daemon will not start")
                     # Keep service running but don't start daemon
                     while self.is_alive:
                         result = win32event.WaitForSingleObject(self.hWaitStop, 1000)  # type: ignore
                         if result == win32event.WAIT_OBJECT_0:  # type: ignore
                             break
+                    debug_log("Exiting due to no configuration")
                     return
 
                 # Setup logging for service mode
+                debug_log("About to setup logging for service mode")
                 setup_logging(config, debug=False)
+                debug_log("Logging setup completed")
                 logger.info("Logging configured for service mode")
 
                 # Run the daemon in a separate thread to allow service control
+                debug_log("About to start daemon thread")
                 import threading
 
                 daemon_thread = threading.Thread(
                     target=self._run_daemon_wrapper, args=(config,), name="DaemonMain", daemon=False
                 )
                 daemon_thread.start()
+                debug_log("Daemon thread started successfully")
                 logger.info("Daemon thread started")
 
                 # Wait for stop signal or daemon thread to finish
@@ -182,6 +215,7 @@ if WINDOWS_SERVICE_AVAILABLE:
 
             except Exception as e:
                 error_msg = f"Service execution error: {e}"
+                debug_log(f"EXCEPTION in SvcDoRun: {error_msg}")
                 logger.error(error_msg, exc_info=True)
                 servicemanager.LogErrorMsg(error_msg)  # type: ignore
 
