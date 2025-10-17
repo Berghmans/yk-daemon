@@ -181,13 +181,19 @@ if WINDOWS_SERVICE_AVAILABLE:
                 debug_log("Successfully reported SERVICE_RUNNING status")
 
                 debug_log("About to log service start to Event Log")
-                # Log service start
-                servicemanager.LogMsg(  # type: ignore
-                    servicemanager.EVENTLOG_INFORMATION_TYPE,  # type: ignore
-                    servicemanager.PYS_SERVICE_STARTED,  # type: ignore
-                    (self._svc_name_, ""),
-                )
-                debug_log("Successfully logged service start to Event Log")
+                # Log service start (optional - only if servicemanager is available)
+                try:
+                    if servicemanager:
+                        servicemanager.LogMsg(
+                            servicemanager.EVENTLOG_INFORMATION_TYPE,
+                            servicemanager.PYS_SERVICE_STARTED,
+                            (self._svc_name_, ""),
+                        )
+                        debug_log("Successfully logged service start to Event Log")
+                    else:
+                        debug_log("servicemanager not available - skipping Event Log")
+                except Exception as e:
+                    debug_log(f"Could not log to Event Log: {e}")
 
                 logger.info("YubiKey Daemon service starting...")
                 logger.info("Service reported as running to Windows")
@@ -203,14 +209,24 @@ if WINDOWS_SERVICE_AVAILABLE:
                     error_msg = f"Configuration error: {e}"
                     debug_log(f"Configuration error: {error_msg}")
                     logger.error(error_msg)
-                    servicemanager.LogErrorMsg(error_msg)  # type: ignore
+                    # Log to Event Log if available
+                    try:
+                        if servicemanager:
+                            servicemanager.LogErrorMsg(error_msg)
+                    except Exception:
+                        pass
                     # Don't return - keep service running but log the error
                     config = None
                 except Exception as e:
                     error_msg = f"Failed to load configuration: {e}"
                     debug_log(f"Configuration loading failed: {error_msg}")
                     logger.error(error_msg)
-                    servicemanager.LogErrorMsg(error_msg)  # type: ignore
+                    # Log to Event Log if available
+                    try:
+                        if servicemanager:
+                            servicemanager.LogErrorMsg(error_msg)
+                    except Exception:
+                        pass
                     # Don't return - keep service running but log the error
                     config = None
 
@@ -263,17 +279,27 @@ if WINDOWS_SERVICE_AVAILABLE:
                     logger.warning("Daemon thread did not finish within timeout")
 
                 logger.info("YubiKey Daemon service stopped")
-                servicemanager.LogMsg(  # type: ignore
-                    servicemanager.EVENTLOG_INFORMATION_TYPE,  # type: ignore
-                    servicemanager.PYS_SERVICE_STOPPED,  # type: ignore
-                    (self._svc_name_, ""),
-                )
+                # Log service stop to Event Log if available
+                try:
+                    if servicemanager:
+                        servicemanager.LogMsg(
+                            servicemanager.EVENTLOG_INFORMATION_TYPE,
+                            servicemanager.PYS_SERVICE_STOPPED,
+                            (self._svc_name_, ""),
+                        )
+                except Exception:
+                    pass
 
             except Exception as e:
                 error_msg = f"Service execution error: {e}"
                 debug_log(f"EXCEPTION in SvcDoRun: {error_msg}")
                 logger.error(error_msg, exc_info=True)
-                servicemanager.LogErrorMsg(error_msg)  # type: ignore
+                # Log error to Event Log if available
+                try:
+                    if servicemanager:
+                        servicemanager.LogErrorMsg(error_msg)
+                except Exception:
+                    pass
 
         def _run_daemon_wrapper(self, config: Config) -> None:
             """Wrapper to run daemon with proper exception handling.
