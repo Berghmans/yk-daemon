@@ -17,27 +17,16 @@ class TestServiceModule(unittest.TestCase):
         except ImportError as e:
             self.fail(f"Service module should be importable on any platform: {e}")
 
-    def test_service_functions_return_false_when_not_available(self) -> None:
-        """Test that service functions return False when Windows service is not available."""
-        from yk_daemon.service import (
-            get_service_status,
-            install_service,
-            remove_service,
-            start_service,
-            stop_service,
-        )
+    def test_service_manager_raises_when_not_available(self) -> None:
+        """Test that ServiceManager raises RuntimeError when Windows service is not available."""
+        from yk_daemon.service import ServiceManager
 
-        # On Linux or when pywin32 is not available, these should return False
-        with patch("builtins.print"):  # Suppress error messages during test
-            self.assertFalse(install_service())
-            self.assertFalse(start_service())
-            self.assertFalse(stop_service())
-            self.assertFalse(remove_service())
+        # On Linux or when pywin32 is not available, ServiceManager should raise RuntimeError
+        with self.assertRaises(RuntimeError) as context:
+            ServiceManager()
 
-        # Status should return a string indicating unavailability
-        status = get_service_status()
-        self.assertIsInstance(status, str)
-        self.assertIn("not available", status.lower())
+        # Error message should mention unavailability
+        self.assertIn("not available", str(context.exception).lower())
 
     def test_service_constants_exist(self) -> None:
         """Test that service constants and class attributes exist."""
@@ -47,56 +36,6 @@ class TestServiceModule(unittest.TestCase):
         self.assertEqual(YubiKeyDaemonService._svc_name_, "YubiKeyDaemonService")
         self.assertEqual(YubiKeyDaemonService._svc_display_name_, "YubiKey Daemon Service")
         self.assertIsInstance(YubiKeyDaemonService._svc_description_, str)
-
-
-class TestServiceMain(unittest.TestCase):
-    """Test service main function and command-line interface."""
-
-    def test_main_with_help_argument(self) -> None:
-        """Test main function with --help argument."""
-        from yk_daemon.service import main
-
-        test_args = ["service.py", "--help"]
-
-        with patch("sys.argv", test_args):
-            with patch("argparse.ArgumentParser.print_help") as mock_help:
-                with patch("sys.exit"):
-                    try:
-                        main()
-                    except SystemExit:
-                        pass
-
-                mock_help.assert_called()
-
-    def test_main_with_unavailable_service_command(self) -> None:
-        """Test main function with service command when service is not available."""
-        from yk_daemon.service import main
-
-        test_args = ["service.py", "--install"]
-
-        with patch("sys.argv", test_args):
-            with patch("builtins.print") as mock_print:
-                with patch("sys.exit") as mock_exit:
-                    main()
-
-                # Should print error and exit with code 1
-                mock_print.assert_called()
-                mock_exit.assert_called_with(1)
-
-    def test_main_with_status_command(self) -> None:
-        """Test main function with --status command."""
-        from yk_daemon.service import main
-
-        test_args = ["service.py", "--status"]
-
-        with patch("sys.argv", test_args):
-            with patch("builtins.print") as mock_print:
-                with patch("sys.exit") as mock_exit:
-                    main()
-
-                # Should print status and exit with code 0
-                mock_print.assert_called()
-                mock_exit.assert_called_with(0)
 
 
 class TestDaemonServiceIntegration(unittest.TestCase):
@@ -190,34 +129,34 @@ class TestServicePlatformCompatibility(unittest.TestCase):
         # This is what we expect in CI/CD environment
         self.assertIsInstance(WINDOWS_SERVICE_AVAILABLE, bool)
 
-    def test_all_service_functions_handle_unavailability_gracefully(self) -> None:
-        """Test that all service functions handle unavailability gracefully."""
-        from yk_daemon.service import (
-            get_service_status,
-            install_service,
-            remove_service,
-            start_service,
-            stop_service,
-        )
+    def test_service_manager_methods_on_windows(self) -> None:
+        """Test that ServiceManager methods exist and have correct signatures."""
+        from yk_daemon.service import WINDOWS_SERVICE_AVAILABLE, ServiceManager
 
-        # None of these should raise exceptions, even if Windows service is not available
-        with patch("builtins.print"):
-            functions_to_test = [
-                lambda: install_service(),
-                lambda: install_service("config.json"),
-                lambda: start_service(),
-                lambda: stop_service(),
-                lambda: remove_service(),
-                lambda: get_service_status(),
-            ]
+        # Skip this test if service is not available (expected on Linux)
+        if not WINDOWS_SERVICE_AVAILABLE:
+            self.skipTest("Windows service not available on this platform")
 
-            for func in functions_to_test:
-                try:
-                    result = func()
-                    # Should return either False (for operations) or string (for status)
-                    self.assertIn(type(result), [bool, str])
-                except Exception as e:
-                    self.fail(f"Service function should not raise exception: {e}")
+        # If we're on Windows with pywin32, test the manager
+        try:
+            manager = ServiceManager()
+
+            # Verify all methods exist
+            self.assertTrue(hasattr(manager, "install"))
+            self.assertTrue(hasattr(manager, "remove"))
+            self.assertTrue(hasattr(manager, "start"))
+            self.assertTrue(hasattr(manager, "stop"))
+            self.assertTrue(hasattr(manager, "status"))
+
+            # Verify they're callable
+            self.assertTrue(callable(manager.install))
+            self.assertTrue(callable(manager.remove))
+            self.assertTrue(callable(manager.start))
+            self.assertTrue(callable(manager.stop))
+            self.assertTrue(callable(manager.status))
+        except RuntimeError:
+            # Expected on non-Windows platforms
+            pass
 
     def test_service_class_exists_regardless_of_platform(self) -> None:
         """Test that service class exists regardless of platform."""

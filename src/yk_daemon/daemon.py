@@ -329,34 +329,26 @@ def main() -> NoReturn:
 
     # Handle Windows service commands
     if any([args.install, args.start, args.stop, args.remove]):
-        # Import service module and delegate to it
+        # Import service module and delegate to ServiceManager
         try:
-            from yk_daemon.service import (
-                install_service,
-                remove_service,
-                start_service,
-                stop_service,
-            )
+            from yk_daemon.service import ServiceManager
 
+            manager = ServiceManager()
             success = True
 
             if args.install:
-                success = install_service(args.config)
+                success = manager.install(args.config)
             elif args.start:
-                success = start_service()
+                success = manager.start()
             elif args.stop:
-                success = stop_service()
+                success = manager.stop()
             elif args.remove:
-                success = remove_service()
+                success = manager.remove()
 
             sys.exit(0 if success else 1)
 
-        except ImportError as e:
-            print(f"ERROR: Service functionality not available: {e}", file=sys.stderr)
-            print(
-                "This might be because you're not on Windows or pywin32 is not installed.",
-                file=sys.stderr,
-            )
+        except (ImportError, RuntimeError) as e:
+            print(f"ERROR: {e}", file=sys.stderr)
             sys.exit(1)
 
     # Load configuration
