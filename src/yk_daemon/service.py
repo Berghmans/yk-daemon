@@ -102,6 +102,9 @@ if WINDOWS_SERVICE_AVAILABLE:
         def SvcDoRun(self) -> None:
             """Main service execution method."""
             try:
+                # Report service as running FIRST to avoid timeout
+                self.ReportServiceStatus(win32service.SERVICE_RUNNING)  # type: ignore
+
                 # Log service start
                 servicemanager.LogMsg(  # type: ignore
                     servicemanager.EVENTLOG_INFORMATION_TYPE,  # type: ignore
@@ -109,6 +112,7 @@ if WINDOWS_SERVICE_AVAILABLE:
                     (self._svc_name_, ""),
                 )
                 logger.info("YubiKey Daemon service starting...")
+                logger.info("Service reported as running to Windows")
 
                 # Load configuration
                 try:
@@ -118,11 +122,22 @@ if WINDOWS_SERVICE_AVAILABLE:
                     error_msg = f"Configuration error: {e}"
                     logger.error(error_msg)
                     servicemanager.LogErrorMsg(error_msg)  # type: ignore
-                    return
+                    # Don't return - keep service running but log the error
+                    config = None
                 except Exception as e:
                     error_msg = f"Failed to load configuration: {e}"
                     logger.error(error_msg)
                     servicemanager.LogErrorMsg(error_msg)  # type: ignore
+                    # Don't return - keep service running but log the error
+                    config = None
+
+                if config is None:
+                    logger.error("Service running with no configuration - daemon will not start")
+                    # Keep service running but don't start daemon
+                    while self.is_alive:
+                        result = win32event.WaitForSingleObject(self.hWaitStop, 1000)  # type: ignore
+                        if result == win32event.WAIT_OBJECT_0:  # type: ignore
+                            break
                     return
 
                 # Setup logging for service mode
@@ -136,10 +151,7 @@ if WINDOWS_SERVICE_AVAILABLE:
                     target=self._run_daemon_wrapper, args=(config,), name="DaemonMain", daemon=False
                 )
                 daemon_thread.start()
-
-                # Report that service is now running
-                self.ReportServiceStatus(win32service.SERVICE_RUNNING)  # type: ignore
-                logger.info("Service reported as running to Windows")
+                logger.info("Daemon thread started")
 
                 # Wait for stop signal or daemon thread to finish
                 while self.is_alive and daemon_thread.is_alive():
