@@ -41,6 +41,21 @@ else:
 
 logger = logging.getLogger(__name__)
 
+# Debug logging at module level to see if service is being imported
+try:
+    from pathlib import Path as DebugPath
+
+    debug_log_path = DebugPath("C:/temp/yk-daemon-debug.log")
+    debug_log_path.parent.mkdir(exist_ok=True)
+    with open(debug_log_path, "a", encoding="utf-8") as f:
+        from datetime import datetime
+
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        f.write(f"[{timestamp}] SERVICE MODULE IMPORTED - Windows is loading our code\n")
+        f.flush()
+except Exception:
+    pass  # Don't let debug logging break anything
+
 
 if WINDOWS_SERVICE_AVAILABLE:
 
@@ -61,6 +76,20 @@ if WINDOWS_SERVICE_AVAILABLE:
             Args:
                 args: Service arguments
             """
+            # Debug log service initialization
+            try:
+                debug_log_path = Path("C:/temp/yk-daemon-debug.log")
+                with open(debug_log_path, "a", encoding="utf-8") as f:
+                    from datetime import datetime
+
+                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    f.write(
+                        f"[{timestamp}] SERVICE __init__ CALLED - Service instance being created\n"
+                    )
+                    f.flush()
+            except Exception:
+                pass
+
             if not WINDOWS_SERVICE_AVAILABLE:
                 raise RuntimeError("Windows service functionality is not available")
 
@@ -68,6 +97,15 @@ if WINDOWS_SERVICE_AVAILABLE:
             self.hWaitStop = win32event.CreateEvent(None, 0, 0, None)  # type: ignore
             self.is_alive = True
             self.config_path = self._get_config_path()
+
+            # Debug log successful initialization
+            try:
+                with open(debug_log_path, "a", encoding="utf-8") as f:
+                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    f.write(f"[{timestamp}] SERVICE __init__ COMPLETED - Service ready to run\n")
+                    f.flush()
+            except Exception:
+                pass
 
         def _get_config_path(self) -> str:
             """Get the configuration file path.
@@ -279,11 +317,12 @@ def install_service(config_path: str = "config.json") -> bool:
         print(f"Config path: {config_path}")
 
         # Install the service
-        # The correct signature is: InstallService(serviceClassString, serviceName, displayName, startType)
+        # Use InstallService with full Python path to ensure it can find our module
         win32serviceutil.InstallService(  # type: ignore
+            python_exe,
             service_class_string,
             service_name,
-            service_display_name,
+            displayName=service_display_name,
             startType=win32service.SERVICE_AUTO_START,  # type: ignore
         )
 
