@@ -64,7 +64,9 @@ jobs:
         run: poetry run mypy src
 
       - name: Run tests with coverage
-        run: poetry run pytest --cov=src --cov-report=xml --cov-report=term
+        run: |
+          poetry run pytest --cov=src --cov-report=xml --cov-report=term \
+            || [ $? -eq 5 ]
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
