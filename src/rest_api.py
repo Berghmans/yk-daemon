@@ -10,7 +10,8 @@ from typing import Any
 
 from flask import Flask, jsonify
 
-from src.config import RestApiConfig
+from src.config import Config, RestApiConfig
+from src.notifications import Notifier, create_notifier_from_config
 from src.yubikey import (
     AccountNotFoundError,
     DeviceNotFoundError,
@@ -342,13 +343,24 @@ def create_app(config: RestApiConfig, yubikey: YubiKeyInterface | None = None) -
     return app
 
 
-def run_server(config: RestApiConfig, yubikey: YubiKeyInterface | None = None) -> None:
+def run_server(
+    config: RestApiConfig,
+    yubikey: YubiKeyInterface | None = None,
+    full_config: Config | None = None,
+) -> None:
     """Run the Flask REST API server.
 
     Args:
         config: REST API configuration
         yubikey: YubiKey interface (creates new instance if None)
+        full_config: Full daemon configuration for creating notifier (optional)
     """
+    # Create notifier from config if provided
+    notifier: Notifier | None = None
+    if full_config and yubikey is None:
+        notifier = create_notifier_from_config(full_config.notifications)
+        yubikey = YubiKeyInterface(notifier=notifier)
+
     app = create_app(config, yubikey)
 
     logger.info(f"Starting REST API server on {config.host}:{config.port}")
