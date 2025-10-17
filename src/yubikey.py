@@ -213,17 +213,17 @@ class YubiKeyInterface:
                     if cred in codes and codes[cred] is not None:
                         # Code available from calculate_all (no touch required)
                         code_value = codes[cred]
-                        if hasattr(code_value, "value"):
+                        if code_value is not None and hasattr(code_value, "value"):
                             result[cred.name] = code_value.value
-                        else:
+                        elif code_value is not None:
                             result[cred.name] = str(code_value)
                     else:
                         # Credential requires touch - calculate individually
                         logger.debug(f"Calculating code with touch for: {cred.name}")
                         code = self._oath_session.calculate_code(cred)
-                        if hasattr(code, "value"):
+                        if code is not None and hasattr(code, "value"):
                             result[cred.name] = code.value
-                        else:
+                        elif code is not None:
                             result[cred.name] = str(code)
 
                 logger.info(f"Generated TOTP codes for {len(result)} accounts")
