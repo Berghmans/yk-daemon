@@ -7,8 +7,7 @@ name: Release
       - main
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 jobs:
   release-please:
@@ -18,10 +17,20 @@ jobs:
       release_created: ${{ steps.release.outputs.release_created }}
       tag_name: ${{ steps.release.outputs.tag_name }}
     steps:
+      - name: Generate GitHub App token
+        id: generate-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.GA_RELEASE_PLEASE_APP_ID }}
+          private-key: ${{ secrets.GA_RELEASE_PLEASE_PRIVATE_KEY }}
+
       - name: Run release-please
         id: release
         uses: googleapis/release-please-action@v4
         with:
+          # Use GitHub App token to trigger other workflows
+          # (default GITHUB_TOKEN cannot trigger workflows for security)
+          token: ${{ steps.generate-token.outputs.token }}
           release-type: python
 
   build-and-publish:

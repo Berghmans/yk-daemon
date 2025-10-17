@@ -452,6 +452,28 @@ This project uses automated releases via GitHub Actions and [release-please](htt
 - `feat!:` or commits with `BREAKING CHANGE:` trigger a **major** version bump (0.1.0 → 1.0.0)
 - Other commit types (`docs:`, `chore:`, etc.) are included in changelog but don't bump version
 
+### GitHub App Setup (Required for Releases)
+
+The release workflow uses a GitHub App token to trigger other workflows and create PRs. To set this up:
+
+1. **Create a GitHub App** (if not already done):
+   - Go to: Settings → Developer settings → GitHub Apps → New GitHub App
+   - Name: `Release Please Bot` (or similar)
+   - Permissions needed:
+     - Contents: Read and write
+     - Pull requests: Read and write
+     - Metadata: Read-only
+   - Install the app on your repository
+
+2. **Configure Repository Secrets and Variables**:
+   - Variable `GA_RELEASE_PLEASE_APP_ID`: Your GitHub App ID
+   - Secret `GA_RELEASE_PLEASE_PRIVATE_KEY`: Your GitHub App private key (download from app settings)
+
+3. **Why GitHub App vs GITHUB_TOKEN?**
+   - GitHub App tokens can trigger other workflows (default GITHUB_TOKEN cannot)
+   - Provides fine-grained permissions
+   - Allows better control over automation capabilities
+
 ## License
 
 [Specify your license here]
