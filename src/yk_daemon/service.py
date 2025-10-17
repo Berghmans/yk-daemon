@@ -376,28 +376,12 @@ def install_service(config_path: str = "config.json") -> bool:
 
         # Install the service
         # The correct signature is: InstallService(serviceClassString, serviceName, displayName, startType)
-        # We need to provide the binaryPath so Windows knows how to execute our service
         try:
-            # Create the full binary path that tells Windows how to run our service
-            service_script = str(Path(__file__).resolve())
-            binary_path = f'"{python_exe}" "{service_script}"'
-
-            # Debug log the binary path
-            try:
-                with open(debug_log_path, "a", encoding="utf-8") as f:
-                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    f.write(f"[{timestamp}] Service script path: {service_script}\n")
-                    f.write(f"[{timestamp}] Binary path: {binary_path}\n")
-                    f.flush()
-            except Exception:
-                pass
-
             win32serviceutil.InstallService(  # type: ignore
                 service_class_string,
                 service_name,
                 service_display_name,
                 startType=win32service.SERVICE_AUTO_START,  # type: ignore
-                binaryPath=binary_path,
             )
         except Exception as e:
             # Debug log installation error
