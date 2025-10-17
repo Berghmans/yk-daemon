@@ -8,7 +8,6 @@ and automatically start on system boot.
 
 import logging
 import sys
-import threading
 import time
 
 from yk_daemon.config import ConfigurationError, load_config
@@ -68,56 +67,77 @@ if WINDOWS_SERVICE_AVAILABLE:
 
         def SvcDoRun(self) -> None:
             """Main service execution method."""
-            try:
-                # Report service as running to avoid timeout
-                self.ReportServiceStatus(win32service.SERVICE_RUNNING)  # type: ignore
-                logger.info("YubiKey Daemon service starting...")
+            # Report running FIRST before doing anything else
+            self.ReportServiceStatus(win32service.SERVICE_RUNNING)  # type: ignore
 
+            try:
                 # Load configuration
                 try:
                     config = load_config("config.json")
-                    logger.info("Configuration loaded successfully")
-                except ConfigurationError as e:
-                    logger.error(f"Configuration error: {e}")
-                    return
-                except Exception as e:
-                    logger.error(f"Failed to load configuration: {e}")
+                except (ConfigurationError, Exception):
+                    # Can't log yet - logging not setup
                     return
 
-                # Setup logging for service mode
+                # Setup logging BEFORE using logger
                 setup_logging(config, debug=False)
-                logger.info("Logging configured for service mode")
+                logger.info("YubiKey Daemon service starting...")
+                logger.info("Configuration loaded successfully")
 
-                # Import daemon here to avoid circular imports
-                from yk_daemon.daemon import run_daemon, shutdown_event
-
-                # Run the daemon in a separate thread
-                daemon_thread = threading.Thread(
-                    target=run_daemon, args=(config, False), name="DaemonMain", daemon=False
+                # Import and start daemon components directly (not via run_daemon which calls sys.exit)
+                from yk_daemon.daemon import (
+                    shutdown_event,
+                    start_rest_api,
+                    start_socket_server,
                 )
-                daemon_thread.start()
-                logger.info("Daemon thread started")
+                from yk_daemon.notifications import create_notifier_from_config
+                from yk_daemon.yubikey import YubiKeyInterface
 
-                # Wait for stop signal or daemon thread to finish
-                while self.is_alive and daemon_thread.is_alive():
+                # Initialize components
+                notifier = create_notifier_from_config(config.notifications)
+                yubikey = YubiKeyInterface(notifier=notifier)
+
+                # Start servers
+                rest_thread = None
+                socket_server = None
+
+                if config.rest_api.enabled:
+                    rest_thread = start_rest_api(config, yubikey)
+
+                if config.socket.enabled:
+                    socket_server = start_socket_server(config, yubikey)
+
+                logger.info("Daemon started successfully")
+
+                # Wait for stop signal
+                while self.is_alive:
                     result = win32event.WaitForSingleObject(self.stop_event, 1000)  # type: ignore
                     if result == win32event.WAIT_OBJECT_0:  # type: ignore
                         logger.info("Service stop event received")
                         break
 
-                # Signal daemon to stop
+                # Shutdown
                 logger.info("Stopping daemon...")
                 shutdown_event.set()
 
-                # Wait for daemon thread to finish
-                daemon_thread.join(timeout=10.0)
-                if daemon_thread.is_alive():
-                    logger.warning("Daemon thread did not finish within timeout")
+                # Stop servers
+                if socket_server and socket_server.is_running():
+                    socket_server.stop()
+
+                if rest_thread and rest_thread.is_alive():
+                    rest_thread.join(timeout=2.0)
+
+                # Cleanup notifier
+                if notifier:
+                    notifier.cleanup()
 
                 logger.info("YubiKey Daemon service stopped")
 
             except Exception as e:
-                logger.error(f"Service execution error: {e}", exc_info=True)
+                # Try to log the error if logging is setup
+                try:
+                    logger.error(f"Service execution error: {e}", exc_info=True)
+                except Exception:
+                    pass  # Logging not available
 
 else:
     # Create a placeholder class for non-Windows systems
