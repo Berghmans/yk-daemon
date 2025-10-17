@@ -7,8 +7,8 @@ from unittest.mock import Mock
 
 import pytest
 
-from src.socket_server import SocketServer
-from src.yubikey import (
+from yk_daemon.socket_server import SocketServer
+from yk_daemon.yubikey import (
     AccountNotFoundError,
     DeviceNotFoundError,
     DeviceRemovedError,
@@ -364,10 +364,18 @@ class TestSocketServer:
             running_server.stop()
             time.sleep(0.2)
 
-            # Connection should be closed
-            with pytest.raises(socket.error):
+            # Connection should be closed - either sending or receiving should fail
+            connection_closed = False
+            try:
                 client_socket.sendall(b"LIST_ACCOUNTS\n")
-                client_socket.recv(1024)
+                # Even if send succeeds, recv should fail or return empty
+                response = client_socket.recv(1024)
+                if not response:
+                    connection_closed = True
+            except OSError:
+                connection_closed = True
+
+            assert connection_closed, "Expected connection to be closed after server shutdown"
 
     def test_get_totp_account_with_special_chars(
         self, running_server: SocketServer, mock_yubikey: Mock

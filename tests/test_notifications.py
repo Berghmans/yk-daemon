@@ -5,8 +5,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from src.config import NotificationsConfig
-from src.notifications import NotificationError, Notifier, create_notifier_from_config
+from yk_daemon.config import NotificationsConfig
+from yk_daemon.notifications import NotificationError, Notifier, create_notifier_from_config
 
 
 class TestNotifierInitialization:
@@ -30,20 +30,20 @@ class TestNotifierInitialization:
         assert isinstance(notifier.sound_enabled, bool)
         assert notifier.sound_file == "custom.wav"
 
-    @patch("src.notifications._PLYER_AVAILABLE", False)
+    @patch("yk_daemon.notifications._PLYER_AVAILABLE", False)
     def test_init_plyer_not_available(self) -> None:
         """Test initialization when plyer is not available."""
         notifier = Notifier(popup_enabled=True)
         assert notifier.popup_enabled is False
 
-    @patch("src.notifications._PYGAME_AVAILABLE", False)
+    @patch("yk_daemon.notifications._PYGAME_AVAILABLE", False)
     def test_init_pygame_not_available(self) -> None:
         """Test initialization when pygame is not available."""
         notifier = Notifier(sound_enabled=True)
         assert notifier.sound_enabled is False
 
-    @patch("src.notifications._PYGAME_AVAILABLE", True)
-    @patch("src.notifications.pygame")
+    @patch("yk_daemon.notifications._PYGAME_AVAILABLE", True)
+    @patch("yk_daemon.notifications.pygame")
     def test_init_pygame_initialization_success(self, mock_pygame: Mock) -> None:
         """Test successful pygame mixer initialization."""
         mock_pygame.mixer.init = Mock()
@@ -51,8 +51,8 @@ class TestNotifierInitialization:
         assert notifier._pygame_initialized is True
         mock_pygame.mixer.init.assert_called_once()
 
-    @patch("src.notifications._PYGAME_AVAILABLE", True)
-    @patch("src.notifications.pygame")
+    @patch("yk_daemon.notifications._PYGAME_AVAILABLE", True)
+    @patch("yk_daemon.notifications.pygame")
     def test_init_pygame_initialization_failure(self, mock_pygame: Mock) -> None:
         """Test pygame mixer initialization failure."""
         mock_pygame.error = Exception
@@ -61,8 +61,8 @@ class TestNotifierInitialization:
         assert notifier.sound_enabled is False
         assert notifier._pygame_initialized is False
 
-    @patch("src.notifications._PYGAME_AVAILABLE", True)
-    @patch("src.notifications.pygame")
+    @patch("yk_daemon.notifications._PYGAME_AVAILABLE", True)
+    @patch("yk_daemon.notifications.pygame")
     def test_init_sound_file_not_found(self, mock_pygame: Mock, tmp_path: Path) -> None:
         """Test initialization with non-existent sound file."""
         mock_pygame.mixer.init = Mock()
@@ -121,8 +121,8 @@ class TestGetSoundPath:
 class TestShowPopup:
     """Tests for show_popup method."""
 
-    @patch("src.notifications._PLYER_AVAILABLE", True)
-    @patch("src.notifications.plyer_notification")
+    @patch("yk_daemon.notifications._PLYER_AVAILABLE", True)
+    @patch("yk_daemon.notifications.plyer_notification")
     def test_show_popup_success(self, mock_notification: Mock) -> None:
         """Test successful popup notification."""
         notifier = Notifier(popup_enabled=True, sound_enabled=False)
@@ -134,8 +134,8 @@ class TestShowPopup:
             timeout=10,
         )
 
-    @patch("src.notifications._PLYER_AVAILABLE", True)
-    @patch("src.notifications.plyer_notification")
+    @patch("yk_daemon.notifications._PLYER_AVAILABLE", True)
+    @patch("yk_daemon.notifications.plyer_notification")
     def test_show_popup_default_message(self, mock_notification: Mock) -> None:
         """Test popup with default message."""
         notifier = Notifier(popup_enabled=True, sound_enabled=False)
@@ -150,15 +150,15 @@ class TestShowPopup:
         # Should not raise any exception
         notifier.show_popup("Test Title", "Test Message")
 
-    @patch("src.notifications._PLYER_AVAILABLE", False)
+    @patch("yk_daemon.notifications._PLYER_AVAILABLE", False)
     def test_show_popup_plyer_not_available(self) -> None:
         """Test popup when plyer is not available."""
         notifier = Notifier(popup_enabled=True, sound_enabled=False)
         # popup_enabled should be False after init
         assert notifier.popup_enabled is False
 
-    @patch("src.notifications._PLYER_AVAILABLE", True)
-    @patch("src.notifications.plyer_notification")
+    @patch("yk_daemon.notifications._PLYER_AVAILABLE", True)
+    @patch("yk_daemon.notifications.plyer_notification")
     def test_show_popup_exception(self, mock_notification: Mock) -> None:
         """Test popup notification failure."""
         mock_notification.notify.side_effect = Exception("Notification failed")
@@ -170,8 +170,8 @@ class TestShowPopup:
 class TestPlaySound:
     """Tests for play_sound method."""
 
-    @patch("src.notifications._PYGAME_AVAILABLE", True)
-    @patch("src.notifications.pygame")
+    @patch("yk_daemon.notifications._PYGAME_AVAILABLE", True)
+    @patch("yk_daemon.notifications.pygame")
     def test_play_sound_success(self, mock_pygame: Mock, tmp_path: Path) -> None:
         """Test successful sound playback."""
         # Create a temporary sound file
@@ -193,15 +193,15 @@ class TestPlaySound:
         # Should not raise any exception
         notifier.play_sound()
 
-    @patch("src.notifications._PYGAME_AVAILABLE", False)
+    @patch("yk_daemon.notifications._PYGAME_AVAILABLE", False)
     def test_play_sound_pygame_not_available(self) -> None:
         """Test play_sound when pygame is not available."""
         notifier = Notifier(popup_enabled=False, sound_enabled=True)
         # sound_enabled should be False after init
         assert notifier.sound_enabled is False
 
-    @patch("src.notifications._PYGAME_AVAILABLE", True)
-    @patch("src.notifications.pygame")
+    @patch("yk_daemon.notifications._PYGAME_AVAILABLE", True)
+    @patch("yk_daemon.notifications.pygame")
     def test_play_sound_no_file_configured(self, mock_pygame: Mock) -> None:
         """Test play_sound with no sound file configured."""
         notifier = Notifier(popup_enabled=False, sound_enabled=True, sound_file=None)
@@ -210,8 +210,8 @@ class TestPlaySound:
         with pytest.raises(NotificationError, match="No sound file configured"):
             notifier.play_sound()
 
-    @patch("src.notifications._PYGAME_AVAILABLE", True)
-    @patch("src.notifications.pygame")
+    @patch("yk_daemon.notifications._PYGAME_AVAILABLE", True)
+    @patch("yk_daemon.notifications.pygame")
     def test_play_sound_file_not_found(self, mock_pygame: Mock) -> None:
         """Test play_sound with non-existent file."""
         notifier = Notifier(popup_enabled=False, sound_enabled=True, sound_file="nonexistent.wav")
@@ -221,8 +221,8 @@ class TestPlaySound:
         with pytest.raises(NotificationError, match="Sound file not found"):
             notifier.play_sound()
 
-    @patch("src.notifications._PYGAME_AVAILABLE", True)
-    @patch("src.notifications.pygame")
+    @patch("yk_daemon.notifications._PYGAME_AVAILABLE", True)
+    @patch("yk_daemon.notifications.pygame")
     def test_play_sound_pygame_error(self, mock_pygame: Mock, tmp_path: Path) -> None:
         """Test play_sound with pygame error."""
         sound_file = tmp_path / "test.wav"
@@ -234,8 +234,8 @@ class TestPlaySound:
         with pytest.raises(NotificationError, match="Failed to play sound"):
             notifier.play_sound()
 
-    @patch("src.notifications._PYGAME_AVAILABLE", True)
-    @patch("src.notifications.pygame")
+    @patch("yk_daemon.notifications._PYGAME_AVAILABLE", True)
+    @patch("yk_daemon.notifications.pygame")
     def test_play_sound_mixer_not_initialized(self, mock_pygame: Mock) -> None:
         """Test play_sound when mixer is not initialized."""
         notifier = Notifier(popup_enabled=False, sound_enabled=True, sound_file="test.wav")
@@ -248,10 +248,10 @@ class TestPlaySound:
 class TestNotify:
     """Tests for notify method."""
 
-    @patch("src.notifications._PLYER_AVAILABLE", True)
-    @patch("src.notifications._PYGAME_AVAILABLE", True)
-    @patch("src.notifications.plyer_notification")
-    @patch("src.notifications.pygame")
+    @patch("yk_daemon.notifications._PLYER_AVAILABLE", True)
+    @patch("yk_daemon.notifications._PYGAME_AVAILABLE", True)
+    @patch("yk_daemon.notifications.plyer_notification")
+    @patch("yk_daemon.notifications.pygame")
     def test_notify_both_enabled_success(
         self, mock_pygame: Mock, mock_notification: Mock, tmp_path: Path
     ) -> None:
@@ -268,16 +268,16 @@ class TestNotify:
         mock_notification.notify.assert_called_once()
         mock_sound.play.assert_called_once()
 
-    @patch("src.notifications._PLYER_AVAILABLE", True)
-    @patch("src.notifications.plyer_notification")
+    @patch("yk_daemon.notifications._PLYER_AVAILABLE", True)
+    @patch("yk_daemon.notifications.plyer_notification")
     def test_notify_only_popup_enabled(self, mock_notification: Mock) -> None:
         """Test notify with only popup enabled."""
         notifier = Notifier(popup_enabled=True, sound_enabled=False)
         notifier.notify("Test Title", "Test Message")
         mock_notification.notify.assert_called_once()
 
-    @patch("src.notifications._PYGAME_AVAILABLE", True)
-    @patch("src.notifications.pygame")
+    @patch("yk_daemon.notifications._PYGAME_AVAILABLE", True)
+    @patch("yk_daemon.notifications.pygame")
     def test_notify_only_sound_enabled(self, mock_pygame: Mock, tmp_path: Path) -> None:
         """Test notify with only sound enabled."""
         sound_file = tmp_path / "test.wav"
@@ -290,10 +290,10 @@ class TestNotify:
         notifier.notify()
         mock_sound.play.assert_called_once()
 
-    @patch("src.notifications._PLYER_AVAILABLE", True)
-    @patch("src.notifications._PYGAME_AVAILABLE", True)
-    @patch("src.notifications.plyer_notification")
-    @patch("src.notifications.pygame")
+    @patch("yk_daemon.notifications._PLYER_AVAILABLE", True)
+    @patch("yk_daemon.notifications._PYGAME_AVAILABLE", True)
+    @patch("yk_daemon.notifications.plyer_notification")
+    @patch("yk_daemon.notifications.pygame")
     def test_notify_both_fail(
         self, mock_pygame: Mock, mock_notification: Mock, tmp_path: Path
     ) -> None:
@@ -308,8 +308,8 @@ class TestNotify:
         with pytest.raises(NotificationError, match="Both popup and sound notifications failed"):
             notifier.notify()
 
-    @patch("src.notifications._PLYER_AVAILABLE", True)
-    @patch("src.notifications.plyer_notification")
+    @patch("yk_daemon.notifications._PLYER_AVAILABLE", True)
+    @patch("yk_daemon.notifications.plyer_notification")
     def test_notify_popup_fails_only_popup_enabled(self, mock_notification: Mock) -> None:
         """Test notify when only popup enabled and it fails."""
         mock_notification.notify.side_effect = Exception("Popup failed")
@@ -317,8 +317,8 @@ class TestNotify:
         with pytest.raises(NotificationError, match="Popup notification failed"):
             notifier.notify()
 
-    @patch("src.notifications._PYGAME_AVAILABLE", True)
-    @patch("src.notifications.pygame")
+    @patch("yk_daemon.notifications._PYGAME_AVAILABLE", True)
+    @patch("yk_daemon.notifications.pygame")
     def test_notify_sound_fails_only_sound_enabled(self, mock_pygame: Mock, tmp_path: Path) -> None:
         """Test notify when only sound enabled and it fails."""
         sound_file = tmp_path / "test.wav"
@@ -334,8 +334,8 @@ class TestNotify:
 class TestCleanup:
     """Tests for cleanup and context manager."""
 
-    @patch("src.notifications._PYGAME_AVAILABLE", True)
-    @patch("src.notifications.pygame")
+    @patch("yk_daemon.notifications._PYGAME_AVAILABLE", True)
+    @patch("yk_daemon.notifications.pygame")
     def test_cleanup_success(self, mock_pygame: Mock) -> None:
         """Test successful cleanup."""
         notifier = Notifier(popup_enabled=False, sound_enabled=True)
@@ -344,8 +344,8 @@ class TestCleanup:
         mock_pygame.mixer.quit.assert_called_once()
         assert notifier._pygame_initialized is False
 
-    @patch("src.notifications._PYGAME_AVAILABLE", True)
-    @patch("src.notifications.pygame")
+    @patch("yk_daemon.notifications._PYGAME_AVAILABLE", True)
+    @patch("yk_daemon.notifications.pygame")
     def test_cleanup_exception(self, mock_pygame: Mock) -> None:
         """Test cleanup with exception."""
         mock_pygame.mixer.quit.side_effect = Exception("Cleanup failed")
@@ -354,8 +354,8 @@ class TestCleanup:
         # Should not raise exception
         notifier.cleanup()
 
-    @patch("src.notifications._PYGAME_AVAILABLE", True)
-    @patch("src.notifications.pygame")
+    @patch("yk_daemon.notifications._PYGAME_AVAILABLE", True)
+    @patch("yk_daemon.notifications.pygame")
     def test_context_manager(self, mock_pygame: Mock) -> None:
         """Test context manager usage."""
         with Notifier(popup_enabled=False, sound_enabled=True) as notifier:

@@ -10,9 +10,9 @@ from typing import Any
 
 from flask import Flask, jsonify
 
-from src.config import Config, RestApiConfig
-from src.notifications import Notifier, create_notifier_from_config
-from src.yubikey import (
+from yk_daemon.config import Config, RestApiConfig
+from yk_daemon.notifications import Notifier, create_notifier_from_config
+from yk_daemon.yubikey import (
     AccountNotFoundError,
     DeviceNotFoundError,
     DeviceRemovedError,

@@ -17,7 +17,7 @@ import socket
 import threading
 from typing import Any
 
-from src.yubikey import (
+from yk_daemon.yubikey import (
     AccountNotFoundError,
     DeviceNotFoundError,
     DeviceRemovedError,

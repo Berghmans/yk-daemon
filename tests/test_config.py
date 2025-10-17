@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
-from src.config import (
+from yk_daemon.config import (
     Config,
     ConfigurationError,
     LoggingConfig,

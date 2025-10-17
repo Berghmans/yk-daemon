@@ -6,6 +6,7 @@ through configuration.
 """
 
 import logging
+import os
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -22,6 +23,8 @@ except ImportError:
     logger.warning("plyer not available - popup notifications will be disabled")
 
 try:
+    # Suppress pygame's "hello from pygame" message
+    os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
     import pygame
 
     _PYGAME_AVAILABLE = True
@@ -121,11 +124,12 @@ class Notifier:
         if cwd_path.exists():
             return cwd_path
 
-        # Try relative to module directory
-        module_dir = Path(__file__).parent.parent
-        module_path = module_dir / sound_file
-        if module_path.exists():
-            return module_path
+        # Try relative to project root directory
+        # From src/yk_daemon/notifications.py, go up two levels to project root
+        project_root = Path(__file__).parent.parent.parent
+        project_path = project_root / sound_file
+        if project_path.exists():
+            return project_path
 
         return None
 

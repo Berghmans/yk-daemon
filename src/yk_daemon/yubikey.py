@@ -12,7 +12,7 @@ from ykman.device import list_all_devices
 from yubikit.core.smartcard import SmartCardConnection
 from yubikit.oath import OathSession
 
-from src.notifications import Notifier
+from yk_daemon.notifications import Notifier
 
 logger = logging.getLogger(__name__)
 
