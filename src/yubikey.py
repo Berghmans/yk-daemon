@@ -205,17 +205,26 @@ class YubiKeyInterface:
             result: dict[str, str] = {}
 
             try:
-                # Calculate codes (this may require touch)
+                # First, try calculate_all() for credentials that don't require touch
                 codes = self._oath_session.calculate_all()
 
+                # Process each credential
                 for cred in credentials:
-                    if cred in codes:
+                    if cred in codes and codes[cred] is not None:
+                        # Code available from calculate_all (no touch required)
                         code_value = codes[cred]
-                        # Extract the numeric code from the Code object
-                        if code_value is not None and hasattr(code_value, "value"):
+                        if hasattr(code_value, "value"):
                             result[cred.name] = code_value.value
-                        elif code_value is not None:
+                        else:
                             result[cred.name] = str(code_value)
+                    else:
+                        # Credential requires touch - calculate individually
+                        logger.debug(f"Calculating code with touch for: {cred.name}")
+                        code = self._oath_session.calculate_code(cred)
+                        if hasattr(code, "value"):
+                            result[cred.name] = code.value
+                        else:
+                            result[cred.name] = str(code)
 
                 logger.info(f"Generated TOTP codes for {len(result)} accounts")
 
