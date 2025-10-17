@@ -293,7 +293,7 @@ if WINDOWS_SERVICE_AVAILABLE:
                 logger.error(f"Daemon execution error: {e}", exc_info=True)
                 self.is_alive = False
 
-    # Debug log that the class was defined successfully
+    # Debug log that the class was defined successfully and check for service startup
     try:
         with open(debug_log_path, "a", encoding="utf-8") as f:
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -303,6 +303,8 @@ if WINDOWS_SERVICE_AVAILABLE:
             f.write(
                 f"[{timestamp}] Full path: {YubiKeyDaemonService.__module__}.{YubiKeyDaemonService.__name__}\n"
             )
+            f.write(f"[{timestamp}] sys.argv at module level: {sys.argv}\n")
+            f.write(f"[{timestamp}] __name__ = {__name__}\n")
             f.flush()
     except Exception as e:
         try:
@@ -646,4 +648,24 @@ Examples:
 
 
 if __name__ == "__main__":
-    main()
+    # This is the standard pywin32 service entry point
+    # When Windows starts the service, it executes this file directly
+    try:
+        debug_log_path = Path("C:/temp/yk-daemon-debug.log")
+        with open(debug_log_path, "a", encoding="utf-8") as f:
+            from datetime import datetime
+
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            f.write(f"[{timestamp}] === __main__ ENTRY POINT ===\n")
+            f.write(f"[{timestamp}] sys.argv: {sys.argv}\n")
+            f.write(f"[{timestamp}] This is the Windows service execution path\n")
+            f.flush()
+    except Exception:
+        pass
+
+    if WINDOWS_SERVICE_AVAILABLE:
+        # This is the standard way Windows services are started
+        win32serviceutil.HandleCommandLine(YubiKeyDaemonService)  # type: ignore
+    else:
+        # Fallback to our custom main function for manual execution
+        main()
