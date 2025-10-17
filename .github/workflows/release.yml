@@ -20,10 +20,9 @@ jobs:
     steps:
       - name: Run release-please
         id: release
-        uses: google-github-actions/release-please-action@v4
+        uses: googleapis/release-please-action@v4
         with:
           release-type: python
-          package-name: yk-daemon
 
   build-and-publish:
     name: Build and Publish Release
