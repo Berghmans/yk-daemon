@@ -52,12 +52,30 @@ try:
 
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         f.write(f"[{timestamp}] SERVICE MODULE IMPORTED - Windows is loading our code\n")
+        f.write(f"[{timestamp}] Module name: {__name__}\n")
+        f.write(f"[{timestamp}] Module file: {__file__}\n")
+        f.write(f"[{timestamp}] Python path: {sys.path}\n")
+        f.write(f"[{timestamp}] WINDOWS_SERVICE_AVAILABLE: {WINDOWS_SERVICE_AVAILABLE}\n")
         f.flush()
-except Exception:
-    pass  # Don't let debug logging break anything
+except Exception as e:
+    try:
+        with open(debug_log_path, "a", encoding="utf-8") as f:
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            f.write(f"[{timestamp}] ERROR in module-level debug logging: {e}\n")
+            f.flush()
+    except Exception:
+        pass  # Don't let debug logging break anything
 
 
 if WINDOWS_SERVICE_AVAILABLE:
+    # Debug log that we're about to define the service class
+    try:
+        with open(debug_log_path, "a", encoding="utf-8") as f:
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            f.write(f"[{timestamp}] About to define YubiKeyDaemonService class\n")
+            f.flush()
+    except Exception:
+        pass
 
     class YubiKeyDaemonService(win32serviceutil.ServiceFramework):  # type: ignore
         """Windows Service class for YubiKey Daemon."""
@@ -274,6 +292,27 @@ if WINDOWS_SERVICE_AVAILABLE:
             except Exception as e:
                 logger.error(f"Daemon execution error: {e}", exc_info=True)
                 self.is_alive = False
+
+    # Debug log that the class was defined successfully
+    try:
+        with open(debug_log_path, "a", encoding="utf-8") as f:
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            f.write(f"[{timestamp}] YubiKeyDaemonService class defined successfully\n")
+            f.write(f"[{timestamp}] Class module: {YubiKeyDaemonService.__module__}\n")
+            f.write(f"[{timestamp}] Class name: {YubiKeyDaemonService.__name__}\n")
+            f.write(
+                f"[{timestamp}] Full path: {YubiKeyDaemonService.__module__}.{YubiKeyDaemonService.__name__}\n"
+            )
+            f.flush()
+    except Exception as e:
+        try:
+            with open(debug_log_path, "a", encoding="utf-8") as f:
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                f.write(f"[{timestamp}] ERROR logging class info: {e}\n")
+                f.flush()
+        except Exception:
+            pass
+
 else:
     # Create a placeholder class for non-Windows systems
     class YubiKeyDaemonService:  # type: ignore
@@ -316,14 +355,44 @@ def install_service(config_path: str = "config.json") -> bool:
         print(f"Python executable: {python_exe}")
         print(f"Config path: {config_path}")
 
+        # Debug log installation details
+        try:
+            debug_log_path = Path("C:/temp/yk-daemon-debug.log")
+            with open(debug_log_path, "a", encoding="utf-8") as f:
+                from datetime import datetime
+
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                f.write(f"[{timestamp}] === SERVICE INSTALLATION ===\n")
+                f.write(f"[{timestamp}] Service class module: {service_class.__module__}\n")
+                f.write(f"[{timestamp}] Service class name: {service_class.__name__}\n")
+                f.write(f"[{timestamp}] Service class string: {service_class_string}\n")
+                f.write(f"[{timestamp}] Service name: {service_name}\n")
+                f.write(f"[{timestamp}] Service display name: {service_display_name}\n")
+                f.write(f"[{timestamp}] Python executable: {python_exe}\n")
+                f.write(f"[{timestamp}] Working directory: {Path.cwd()}\n")
+                f.flush()
+        except Exception:
+            pass
+
         # Install the service
         # The correct signature is: InstallService(serviceClassString, serviceName, displayName, startType)
-        win32serviceutil.InstallService(  # type: ignore
-            service_class_string,
-            service_name,
-            service_display_name,
-            startType=win32service.SERVICE_AUTO_START,  # type: ignore
-        )
+        try:
+            win32serviceutil.InstallService(  # type: ignore
+                service_class_string,
+                service_name,
+                service_display_name,
+                startType=win32service.SERVICE_AUTO_START,  # type: ignore
+            )
+        except Exception as e:
+            # Debug log installation error
+            try:
+                with open(debug_log_path, "a", encoding="utf-8") as f:
+                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    f.write(f"[{timestamp}] InstallService FAILED: {e}\n")
+                    f.flush()
+            except Exception:
+                pass
+            raise
 
         print(f"Service '{service_display_name}' installed successfully")
         print("The service will start automatically on system boot")
