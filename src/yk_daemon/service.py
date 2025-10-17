@@ -18,12 +18,18 @@ from yk_daemon.daemon import setup_logging
 # Only import Windows-specific modules on Windows
 if sys.platform == "win32":
     try:
-        import servicemanager
         import win32event
         import win32service
         import win32serviceutil
 
         WINDOWS_SERVICE_AVAILABLE = True
+
+        # Import servicemanager separately as it may not be available even when other win32 modules work
+        try:
+            import servicemanager
+        except ImportError:
+            servicemanager = None
+
     except ImportError:
         WINDOWS_SERVICE_AVAILABLE = False
         # Create placeholder classes for type hints
