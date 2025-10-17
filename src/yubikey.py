@@ -12,6 +12,8 @@ from ykman.device import list_all_devices
 from yubikit.core.smartcard import SmartCardConnection
 from yubikit.oath import OathSession
 
+from src.notifications import Notifier
+
 logger = logging.getLogger(__name__)
 
 
@@ -56,11 +58,16 @@ class YubiKeyStatus(Enum):
 class YubiKeyInterface:
     """High-level interface for YubiKey OATH-TOTP operations."""
 
-    def __init__(self) -> None:
-        """Initialize the YubiKey interface."""
+    def __init__(self, notifier: Notifier | None = None) -> None:
+        """Initialize the YubiKey interface.
+
+        Args:
+            notifier: Notifier instance for showing touch notifications (optional)
+        """
         self._device: Any = None
         self._connection: Any = None
         self._oath_session: OathSession | None = None
+        self._notifier = notifier
         logger.info("YubiKey interface initialized")
 
     def detect_device(self) -> bool:
@@ -218,8 +225,19 @@ class YubiKeyInterface:
                         elif code_value is not None:
                             result[cred.name] = str(code_value)
                     else:
-                        # Credential requires touch - calculate individually
+                        # Credential requires touch - show notification first
                         logger.debug(f"Calculating code with touch for: {cred.name}")
+                        if self._notifier:
+                            try:
+                                self._notifier.notify(
+                                    title="YubiKey Touch Required",
+                                    message=f"Please touch your YubiKey to generate code for {cred.name}",
+                                )
+                            except Exception as e:
+                                # Don't fail if notification fails, just log it
+                                logger.warning(f"Failed to show notification: {e}")
+
+                        # Calculate code with touch
                         code = self._oath_session.calculate_code(cred)
                         if code is not None and hasattr(code, "value"):
                             result[cred.name] = code.value
