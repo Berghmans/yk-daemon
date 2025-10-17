@@ -317,12 +317,11 @@ def install_service(config_path: str = "config.json") -> bool:
         print(f"Config path: {config_path}")
 
         # Install the service
-        # Use InstallService with full Python path to ensure it can find our module
+        # The correct signature is: InstallService(serviceClassString, serviceName, displayName, startType)
         win32serviceutil.InstallService(  # type: ignore
-            python_exe,
             service_class_string,
             service_name,
-            displayName=service_display_name,
+            service_display_name,
             startType=win32service.SERVICE_AUTO_START,  # type: ignore
         )
 
