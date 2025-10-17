@@ -7,8 +7,8 @@ from unittest.mock import Mock
 
 import pytest
 
-from src.socket_server import SocketServer
-from src.yubikey import (
+from yk_daemon.socket_server import SocketServer
+from yk_daemon.yubikey import (
     AccountNotFoundError,
     DeviceNotFoundError,
     DeviceRemovedError,

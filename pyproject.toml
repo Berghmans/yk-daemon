@@ -5,7 +5,7 @@ description = "Windows daemon that bridges YubiKey OATH-TOTP functionality to WS
 authors = ["Olivier Berghmans"]
 readme = "README.md"
 license = "MIT"
-packages = [{include = "src"}]
+packages = [{include = "yk_daemon", from = "src"}]
 
 [tool.poetry.dependencies]
 python = "^3.12"
@@ -23,7 +23,7 @@ mypy = "^1.14.0"
 requests = "^2.32.5"
 
 [tool.poetry.scripts]
-yk-daemon = "src.daemon:main"
+yk-daemon = "yk_daemon.daemon:main"
 
 [build-system]
 requires = ["poetry-core"]
@@ -86,7 +86,7 @@ addopts = [
 ]
 
 [tool.coverage.run]
-source = ["src"]
+source = ["src/yk_daemon"]
 omit = [
     "*/tests/*",
     "*/__pycache__/*",

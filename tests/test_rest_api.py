@@ -6,9 +6,9 @@ import pytest
 from flask import Flask
 from flask.testing import FlaskClient
 
-from src.config import RestApiConfig
-from src.rest_api import create_app
-from src.yubikey import (
+from yk_daemon.config import RestApiConfig
+from yk_daemon.rest_api import create_app
+from yk_daemon.yubikey import (
     AccountNotFoundError,
     DeviceNotFoundError,
     DeviceRemovedError,
@@ -340,7 +340,7 @@ class TestGetTotpForAccountEndpoint:
 class TestRequestLogging:
     """Test cases for request/response logging."""
 
-    @patch("src.rest_api.logger")
+    @patch("yk_daemon.rest_api.logger")
     def test_request_logging(
         self, mock_logger: Mock, client: FlaskClient, mock_yubikey: Mock
     ) -> None:
@@ -353,7 +353,7 @@ class TestRequestLogging:
         info_calls = list(mock_logger.info.call_args_list)
         assert any("GET" in str(call) and "/health" in str(call) for call in info_calls)
 
-    @patch("src.rest_api.logger")
+    @patch("yk_daemon.rest_api.logger")
     def test_response_logging(
         self, mock_logger: Mock, client: FlaskClient, mock_yubikey: Mock
     ) -> None:

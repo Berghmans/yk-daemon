@@ -9,8 +9,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src import daemon as yk_daemon  # noqa: E402
-from src.config import (  # noqa: E402
+from yk_daemon import daemon as yk_daemon  # noqa: E402
+from yk_daemon.config import (  # noqa: E402
     Config,
     LoggingConfig,
     NotificationsConfig,
@@ -204,7 +204,7 @@ class TestMainFunction:
 
     def test_main_config_error(self, capsys: pytest.CaptureFixture[str]) -> None:
         """Test main function with configuration error."""
-        from src.config import ConfigurationError
+        from yk_daemon.config import ConfigurationError
 
         with (
             patch.object(yk_daemon, "load_config") as mock_load_config,

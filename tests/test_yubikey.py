@@ -4,7 +4,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from src.yubikey import (
+from yk_daemon.yubikey import (
     AccountNotFoundError,
     DeviceNotFoundError,
     DeviceRemovedError,
@@ -68,7 +68,7 @@ class TestYubiKeyInterface:
         assert yubikey_interface._connection is None
         assert yubikey_interface._oath_session is None
 
-    @patch("src.yubikey.list_all_devices")
+    @patch("yk_daemon.yubikey.list_all_devices")
     def test_detect_device_found(
         self, mock_list_devices: Mock, yubikey_interface: YubiKeyInterface
     ) -> None:
@@ -80,7 +80,7 @@ class TestYubiKeyInterface:
         assert result is True
         mock_list_devices.assert_called_once()
 
-    @patch("src.yubikey.list_all_devices")
+    @patch("yk_daemon.yubikey.list_all_devices")
     def test_detect_device_not_found(
         self, mock_list_devices: Mock, yubikey_interface: YubiKeyInterface
     ) -> None:
@@ -92,7 +92,7 @@ class TestYubiKeyInterface:
         assert result is False
         mock_list_devices.assert_called_once()
 
-    @patch("src.yubikey.list_all_devices")
+    @patch("yk_daemon.yubikey.list_all_devices")
     def test_detect_device_error(
         self, mock_list_devices: Mock, yubikey_interface: YubiKeyInterface
     ) -> None:
@@ -103,7 +103,7 @@ class TestYubiKeyInterface:
 
         assert result is False
 
-    @patch("src.yubikey.list_all_devices")
+    @patch("yk_daemon.yubikey.list_all_devices")
     def test_get_status_connected(
         self, mock_list_devices: Mock, yubikey_interface: YubiKeyInterface
     ) -> None:
@@ -114,7 +114,7 @@ class TestYubiKeyInterface:
 
         assert status == YubiKeyStatus.CONNECTED
 
-    @patch("src.yubikey.list_all_devices")
+    @patch("yk_daemon.yubikey.list_all_devices")
     def test_get_status_not_connected(
         self, mock_list_devices: Mock, yubikey_interface: YubiKeyInterface
     ) -> None:
@@ -125,8 +125,8 @@ class TestYubiKeyInterface:
 
         assert status == YubiKeyStatus.NOT_CONNECTED
 
-    @patch("src.yubikey.OathSession")
-    @patch("src.yubikey.list_all_devices")
+    @patch("yk_daemon.yubikey.OathSession")
+    @patch("yk_daemon.yubikey.list_all_devices")
     def test_list_accounts_success(
         self,
         mock_list_devices: Mock,
@@ -154,7 +154,7 @@ class TestYubiKeyInterface:
         assert "account2@example.com" in accounts
         mock_device._test_connection.close.assert_called_once()
 
-    @patch("src.yubikey.list_all_devices")
+    @patch("yk_daemon.yubikey.list_all_devices")
     def test_list_accounts_no_device(
         self, mock_list_devices: Mock, yubikey_interface: YubiKeyInterface
     ) -> None:
@@ -164,8 +164,8 @@ class TestYubiKeyInterface:
         with pytest.raises(DeviceNotFoundError, match="No YubiKey device found"):
             yubikey_interface.list_accounts()
 
-    @patch("src.yubikey.OathSession")
-    @patch("src.yubikey.list_all_devices")
+    @patch("yk_daemon.yubikey.OathSession")
+    @patch("yk_daemon.yubikey.list_all_devices")
     def test_list_accounts_device_removed(
         self,
         mock_list_devices: Mock,
@@ -186,8 +186,8 @@ class TestYubiKeyInterface:
 
         mock_device._test_connection.close.assert_called_once()
 
-    @patch("src.yubikey.OathSession")
-    @patch("src.yubikey.list_all_devices")
+    @patch("yk_daemon.yubikey.OathSession")
+    @patch("yk_daemon.yubikey.list_all_devices")
     def test_generate_totp_single_account(
         self,
         mock_list_devices: Mock,
@@ -215,8 +215,8 @@ class TestYubiKeyInterface:
         assert result == "123456"
         mock_device._test_connection.close.assert_called_once()
 
-    @patch("src.yubikey.OathSession")
-    @patch("src.yubikey.list_all_devices")
+    @patch("yk_daemon.yubikey.OathSession")
+    @patch("yk_daemon.yubikey.list_all_devices")
     def test_generate_totp_all_accounts(
         self,
         mock_list_devices: Mock,
@@ -254,8 +254,8 @@ class TestYubiKeyInterface:
         assert result["account2@example.com"] == "654321"
         mock_device._test_connection.close.assert_called_once()
 
-    @patch("src.yubikey.OathSession")
-    @patch("src.yubikey.list_all_devices")
+    @patch("yk_daemon.yubikey.OathSession")
+    @patch("yk_daemon.yubikey.list_all_devices")
     def test_generate_totp_account_not_found(
         self,
         mock_list_devices: Mock,
@@ -281,8 +281,8 @@ class TestYubiKeyInterface:
 
         mock_device._test_connection.close.assert_called_once()
 
-    @patch("src.yubikey.OathSession")
-    @patch("src.yubikey.list_all_devices")
+    @patch("yk_daemon.yubikey.OathSession")
+    @patch("yk_daemon.yubikey.list_all_devices")
     def test_generate_totp_touch_timeout(
         self,
         mock_list_devices: Mock,
@@ -307,8 +307,8 @@ class TestYubiKeyInterface:
 
         mock_device._test_connection.close.assert_called_once()
 
-    @patch("src.yubikey.OathSession")
-    @patch("src.yubikey.list_all_devices")
+    @patch("yk_daemon.yubikey.OathSession")
+    @patch("yk_daemon.yubikey.list_all_devices")
     def test_generate_totp_no_credentials(
         self,
         mock_list_devices: Mock,
@@ -329,7 +329,7 @@ class TestYubiKeyInterface:
         assert result == {}
         mock_device._test_connection.close.assert_called_once()
 
-    @patch("src.yubikey.list_all_devices")
+    @patch("yk_daemon.yubikey.list_all_devices")
     def test_get_device_info_success(
         self,
         mock_list_devices: Mock,
@@ -347,7 +347,7 @@ class TestYubiKeyInterface:
         assert info["version"] == "5.4.3"
         assert info["transport"] == "USB"
 
-    @patch("src.yubikey.list_all_devices")
+    @patch("yk_daemon.yubikey.list_all_devices")
     def test_get_device_info_no_device(
         self, mock_list_devices: Mock, yubikey_interface: YubiKeyInterface
     ) -> None:
@@ -357,8 +357,8 @@ class TestYubiKeyInterface:
         with pytest.raises(DeviceNotFoundError, match="No YubiKey device found"):
             yubikey_interface.get_device_info()
 
-    @patch("src.yubikey.OathSession")
-    @patch("src.yubikey.list_all_devices")
+    @patch("yk_daemon.yubikey.OathSession")
+    @patch("yk_daemon.yubikey.list_all_devices")
     def test_disconnect_on_error(
         self,
         mock_list_devices: Mock,
@@ -380,8 +380,8 @@ class TestYubiKeyInterface:
         # Ensure disconnect was called even though an error occurred
         mock_device._test_connection.close.assert_called_once()
 
-    @patch("src.yubikey.OathSession")
-    @patch("src.yubikey.list_all_devices")
+    @patch("yk_daemon.yubikey.OathSession")
+    @patch("yk_daemon.yubikey.list_all_devices")
     def test_disconnect_handles_close_error(
         self,
         mock_list_devices: Mock,

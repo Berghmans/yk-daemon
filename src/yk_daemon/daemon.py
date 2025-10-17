@@ -13,11 +13,11 @@ import threading
 from pathlib import Path
 from typing import NoReturn
 
-from .config import Config, ConfigurationError, load_config
-from .notifications import Notifier, create_notifier_from_config
-from .rest_api import run_server as run_rest_server
-from .socket_server import SocketServer
-from .yubikey import YubiKeyInterface
+from yk_daemon.config import Config, ConfigurationError, load_config
+from yk_daemon.notifications import Notifier, create_notifier_from_config
+from yk_daemon.rest_api import run_server as run_rest_server
+from yk_daemon.socket_server import SocketServer
+from yk_daemon.yubikey import YubiKeyInterface
 
 # Global shutdown event for graceful termination
 shutdown_event = threading.Event()
