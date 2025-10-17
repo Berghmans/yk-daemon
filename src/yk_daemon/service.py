@@ -137,6 +137,10 @@ if WINDOWS_SERVICE_AVAILABLE:
                 )
                 daemon_thread.start()
 
+                # Report that service is now running
+                self.ReportServiceStatus(win32service.SERVICE_RUNNING)  # type: ignore
+                logger.info("Service reported as running to Windows")
+
                 # Wait for stop signal or daemon thread to finish
                 while self.is_alive and daemon_thread.is_alive():
                     # Wait for stop event with timeout
