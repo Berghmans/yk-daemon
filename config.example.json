@@ -1,0 +1,21 @@
+{
+  "rest_api": {
+    "enabled": true,
+    "host": "127.0.0.1",
+    "port": 5000
+  },
+  "socket": {
+    "enabled": true,
+    "host": "127.0.0.1",
+    "port": 5001
+  },
+  "notifications": {
+    "popup": true,
+    "sound": true,
+    "sound_file": "notification.wav"
+  },
+  "logging": {
+    "level": "INFO",
+    "file": "yk-daemon.log"
+  }
+}
