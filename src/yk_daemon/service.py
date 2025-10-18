@@ -366,7 +366,8 @@ def start() -> None:
 
 if __name__ == "__main__":
     # Protect multiprocessing entry point
-    multiprocessing.freeze_support() if multiprocessing else None  # type: ignore
+    if multiprocessing:
+        multiprocessing.freeze_support()
 
     try:
         start()
