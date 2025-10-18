@@ -86,17 +86,31 @@ def run_daemon_process() -> None:
     """Run daemon in a separate process (called via multiprocessing)."""
     # Set up basic logging FIRST so we can capture early errors
     # This is critical for Windows services where stdout/stderr go nowhere
-    log_file = _get_default_log_path()
+
+    # Try to get the default log path, with fallback if it fails
+    try:
+        log_file = _get_default_log_path()
+    except Exception:
+        # Fallback to temp directory if default path fails
+        import tempfile
+
+        log_file = os.path.join(tempfile.gettempdir(), "yk-daemon.log")
+
+    # Set up basic file logging
     logging.basicConfig(
-        level=logging.INFO,
+        level=logging.DEBUG,  # Use DEBUG for initial troubleshooting
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         handlers=[logging.FileHandler(log_file, encoding="utf-8")],
     )
 
-    try:
-        logger.info("=" * 60)
-        logger.info("Service process starting...")
+    logger.info("=" * 60)
+    logger.info("YubiKey Daemon service process starting...")
+    logger.info(f"Log file: {log_file}")
+    logger.info(f"Python: {sys.executable}")
+    logger.info(f"Working directory: {os.getcwd()}")
+    logger.info("=" * 60)
 
+    try:
         # Get config path appropriate for service
         config_path = get_service_config_path()
         logger.info(f"Config path: {config_path}")
