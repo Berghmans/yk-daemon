@@ -63,48 +63,15 @@ def run_daemon_process() -> None:
 
         # Setup logging
         setup_logging(config, debug=False)
-        logger.info("YubiKey Daemon process starting...")
 
-        # Import and start daemon components
-        from yk_daemon.daemon import shutdown_event, start_rest_api, start_socket_server
-        from yk_daemon.notifications import create_notifier_from_config
-        from yk_daemon.yubikey import YubiKeyInterface
+        # Import and run daemon - all logic is in daemon.py
+        from yk_daemon.daemon import run_daemon
 
-        # Initialize components
-        notifier = create_notifier_from_config(config.notifications)
-        yubikey = YubiKeyInterface(notifier=notifier)
+        run_daemon(config, debug=False)
 
-        # Start servers
-        rest_thread = None
-        socket_server = None
-
-        if config.rest_api.enabled:
-            rest_thread = start_rest_api(config, yubikey)
-
-        if config.socket.enabled:
-            socket_server = start_socket_server(config, yubikey)
-
-        logger.info("Daemon started successfully")
-
-        # Wait for shutdown signal (process will be terminated by service)
-        while not shutdown_event.is_set():
-            shutdown_event.wait(timeout=1.0)
-
-        # Cleanup
-        logger.info("Daemon shutting down...")
-
-        if socket_server and socket_server.is_running():
-            socket_server.stop()
-
-        if rest_thread and rest_thread.is_alive():
-            rest_thread.join(timeout=2.0)
-
-        if notifier:
-            notifier.cleanup()
-
-        logger.info("Daemon stopped")
-
-    except (ConfigurationError, Exception) as e:
+    except ConfigurationError as e:
+        logger.error(f"Configuration error: {e}", exc_info=True)
+    except Exception as e:
         logger.error(f"Daemon process error: {e}", exc_info=True)
 
 
@@ -357,7 +324,13 @@ def start() -> None:
     elif "--fg" in sys.argv:
         # Foreground mode - run daemon directly (for testing)
         print("Running in foreground mode...")
-        run_daemon_process()
+        try:
+            from yk_daemon.daemon import main
+
+            main()
+        except Exception as e:
+            print(f"ERROR: {e}", file=sys.stderr)
+            sys.exit(1)
 
     else:
         # Command-line service management (install/remove/start/stop)
