@@ -363,7 +363,7 @@ def _build_config_from_dict(config_dict: dict[str, Any]) -> Config:
     logging_dict = config_dict.get("logging", {})
     logging_config = LoggingConfig(
         level=logging_dict.get("level", LoggingConfig.level),
-        file=logging_dict.get("file", LoggingConfig.file),
+        file=logging_dict.get("file", _get_default_log_path()),
     )
 
     return Config(
