@@ -149,8 +149,8 @@ def main() -> int:
     parser.add_argument(
         "--port",
         type=int,
-        default=5000,
-        help="API port (default: 5000)",
+        default=5100,
+        help="API port (default: 5100)",
     )
     parser.add_argument(
         "--account",

@@ -84,16 +84,16 @@ class TestSocketServer:
 
     def test_init(self, mock_yubikey: Mock) -> None:
         """Test SocketServer initialization."""
-        server = SocketServer(host="127.0.0.1", port=5001, yubikey_interface=mock_yubikey)
+        server = SocketServer(host="127.0.0.1", port=5101, yubikey_interface=mock_yubikey)
 
         assert server.host == "127.0.0.1"
-        assert server.port == 5001
+        assert server.port == 5101
         assert server.yubikey == mock_yubikey
         assert not server.is_running()
 
     def test_init_default_yubikey(self) -> None:
         """Test SocketServer initialization with default YubiKey interface."""
-        server = SocketServer(host="127.0.0.1", port=5001)
+        server = SocketServer(host="127.0.0.1", port=5101)
 
         assert isinstance(server.yubikey, YubiKeyInterface)
 

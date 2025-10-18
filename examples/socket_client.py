@@ -221,8 +221,8 @@ def main() -> int:
     parser.add_argument(
         "--port",
         type=int,
-        default=5001,
-        help="Socket server port (default: 5001)",
+        default=5101,
+        help="Socket server port (default: 5101)",
     )
     parser.add_argument(
         "--account",

@@ -27,8 +27,8 @@ WSL 'cannot' directly access USB devices like YubiKeys due to USB passthrough li
 │                                                         │
 │  ┌──────────────┐         ┌─────────────────────────┐  │
 │  │   YubiKey    │◄────────┤    yk-daemon (Python)   │  │
-│  │   (USB)      │         │  - REST API (port 5000) │  │
-│  └──────────────┘         │  - Socket (port 5001)   │  │
+│  │   (USB)      │         │  - REST API (port 5100) │  │
+│  └──────────────┘         │  - Socket (port 5101)   │  │
 │                           │  - Notifications        │  │
 │                           └─────────┬───────────────┘  │
 │                                     │                   │
@@ -40,8 +40,8 @@ WSL 'cannot' directly access USB devices like YubiKeys due to USB passthrough li
 │                                     ▼                   │
 │  ┌──────────────────────────────────────────────────┐  │
 │  │  Linux Applications / Scripts                    │  │
-│  │  - curl http://127.0.0.1:5000/api/totp           │  │
-│  │  - netcat 127.0.0.1 5001                         │  │
+│  │  - curl http://127.0.0.1:5100/api/totp           │  │
+│  │  - netcat 127.0.0.1 5101                         │  │
 │  └──────────────────────────────────────────────────┘  │
 │                                                         │
 └─────────────────────────────────────────────────────────┘
@@ -98,7 +98,7 @@ poetry run python yk-daemon.py --remove
 
 ### REST API
 
-Base URL: `http://127.0.0.1:5000`
+Base URL: `http://127.0.0.1:5100`
 
 #### Get TOTP Code
 
@@ -165,7 +165,7 @@ GET /health
 
 ### Socket Protocol
 
-Connect to: `127.0.0.1:5001`
+Connect to: `127.0.0.1:5101`
 
 #### Get TOTP Code
 
@@ -218,12 +218,12 @@ Create a `config.json` file:
   "rest_api": {
     "enabled": true,
     "host": "127.0.0.1",
-    "port": 5000
+    "port": 5100
   },
   "socket": {
     "enabled": true,
     "host": "127.0.0.1",
-    "port": 5001
+    "port": 5101
   },
   "notifications": {
     "popup": true,
@@ -243,13 +243,13 @@ Create a `config.json` file:
 
 ```bash
 # Get TOTP code
-curl http://127.0.0.1:5000/api/totp
+curl http://127.0.0.1:5100/api/totp
 
 # Get TOTP for specific account
-curl http://127.0.0.1:5000/api/totp/GitHub
+curl http://127.0.0.1:5100/api/totp/GitHub
 
 # List accounts
-curl http://127.0.0.1:5000/api/accounts
+curl http://127.0.0.1:5100/api/accounts
 ```
 
 ### From WSL (Python)
@@ -257,7 +257,7 @@ curl http://127.0.0.1:5000/api/accounts
 ```python
 import requests
 
-response = requests.get('http://127.0.0.1:5000/api/totp')
+response = requests.get('http://127.0.0.1:5100/api/totp')
 data = response.json()
 print(f"TOTP Code: {data['totp']}")
 ```
@@ -266,14 +266,14 @@ print(f"TOTP Code: {data['totp']}")
 
 ```bash
 # Using netcat
-echo "GET_TOTP" | nc 127.0.0.1 5001
+echo "GET_TOTP" | nc 127.0.0.1 5101
 ```
 
 ```python
 import socket
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-sock.connect(('127.0.0.1', 5001))
+sock.connect(('127.0.0.1', 5101))
 sock.send(b'GET_TOTP\n')
 response = sock.recv(1024).decode()
 print(response)  # OK 123456
@@ -382,8 +382,8 @@ ykman oath accounts list
 ### Cannot Connect from WSL
 
 1. Ensure Windows Firewall allows localhost connections
-2. Verify daemon is running: `curl http://127.0.0.1:5000/health` from Windows
-3. Check if ports are in use: `netstat -an | findstr "5000"`
+2. Verify daemon is running: `curl http://127.0.0.1:5100/health` from Windows
+3. Check if ports are in use: `netstat -an | findstr "5100"`
 
 ### Service Won't Start
 

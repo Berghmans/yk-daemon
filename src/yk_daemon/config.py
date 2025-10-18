@@ -7,8 +7,8 @@ This module handles loading and validating configuration from:
 
 Environment variables follow the pattern: YK_DAEMON_<SECTION>_<KEY>
 Examples:
-- YK_DAEMON_REST_API_PORT=5000
-- YK_DAEMON_SOCKET_PORT=5001
+- YK_DAEMON_REST_API_PORT=5100
+- YK_DAEMON_SOCKET_PORT=5101
 - YK_DAEMON_LOGGING_LEVEL=DEBUG
 """
 
@@ -34,7 +34,7 @@ class RestApiConfig:
 
     enabled: bool = True
     host: str = "127.0.0.1"
-    port: int = 5000
+    port: int = 5100
 
     def validate(self) -> None:
         """Validate REST API configuration."""
@@ -59,7 +59,7 @@ class SocketConfig:
 
     enabled: bool = True
     host: str = "127.0.0.1"
-    port: int = 5001
+    port: int = 5101
 
     def validate(self) -> None:
         """Validate socket configuration."""
@@ -217,8 +217,8 @@ def _load_env_overrides() -> dict[str, Any]:
     Environment variables follow the pattern: YK_DAEMON_<SECTION>_<KEY>
     Examples:
         YK_DAEMON_REST_API_ENABLED=false
-        YK_DAEMON_REST_API_PORT=5000
-        YK_DAEMON_SOCKET_PORT=5001
+        YK_DAEMON_REST_API_PORT=5100
+        YK_DAEMON_SOCKET_PORT=5101
         YK_DAEMON_LOGGING_LEVEL=DEBUG
 
     Returns:

@@ -20,7 +20,7 @@ from yk_daemon.yubikey import (
 @pytest.fixture
 def rest_api_config() -> RestApiConfig:
     """Create a REST API configuration for testing."""
-    return RestApiConfig(enabled=True, host="127.0.0.1", port=5000)
+    return RestApiConfig(enabled=True, host="127.0.0.1", port=5100)
 
 
 @pytest.fixture
