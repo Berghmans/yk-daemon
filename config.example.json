@@ -2,12 +2,12 @@
   "rest_api": {
     "enabled": true,
     "host": "127.0.0.1",
-    "port": 5000
+    "port": 5100
   },
   "socket": {
     "enabled": true,
     "host": "127.0.0.1",
-    "port": 5001
+    "port": 5101
   },
   "notifications": {
     "popup": true,

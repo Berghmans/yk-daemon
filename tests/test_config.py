@@ -26,7 +26,7 @@ class TestRestApiConfig:
         config = RestApiConfig()
         assert config.enabled is True
         assert config.host == "127.0.0.1"
-        assert config.port == 5000
+        assert config.port == 5100
 
     def test_custom_values(self) -> None:
         """Test custom configuration values."""
@@ -57,7 +57,7 @@ class TestRestApiConfig:
     def test_validate_invalid_port_type(self) -> None:
         """Test validation fails for invalid port type."""
         config = RestApiConfig()
-        config.port = "5000"  # type: ignore
+        config.port = "5100"  # type: ignore
         with pytest.raises(ConfigurationError, match="rest_api.port must be an integer"):
             config.validate()
 
@@ -88,7 +88,7 @@ class TestSocketConfig:
         config = SocketConfig()
         assert config.enabled is True
         assert config.host == "127.0.0.1"
-        assert config.port == 5001
+        assert config.port == 5101
 
     def test_custom_values(self) -> None:
         """Test custom configuration values."""
@@ -211,8 +211,8 @@ class TestConfig:
     def test_validate_port_conflict(self) -> None:
         """Test validation fails when REST API and socket use same port."""
         config = Config()
-        config.rest_api.port = 5000
-        config.socket.port = 5000
+        config.rest_api.port = 5100
+        config.socket.port = 5100
         with pytest.raises(ConfigurationError, match="cannot use the same host:port combination"):
             config.validate()
 
@@ -229,8 +229,8 @@ class TestConfig:
     def test_validate_allows_different_ports(self) -> None:
         """Test validation passes when ports are different."""
         config = Config()
-        config.rest_api.port = 5000
-        config.socket.port = 5001
+        config.rest_api.port = 5100
+        config.socket.port = 5101
         config.validate()  # Should not raise
 
 
@@ -243,9 +243,9 @@ class TestLoadConfig:
         config = load_config("nonexistent.json")
 
         assert config.rest_api.enabled is True
-        assert config.rest_api.port == 5000
+        assert config.rest_api.port == 5100
         assert config.socket.enabled is True
-        assert config.socket.port == 5001
+        assert config.socket.port == 5101
 
     def test_load_config_from_file(self, tmp_path: Path) -> None:
         """Test loading config from JSON file."""
@@ -286,7 +286,7 @@ class TestLoadConfig:
     def test_load_config_with_env_overrides(self, tmp_path: Path) -> None:
         """Test loading config with environment variable overrides."""
         config_file = tmp_path / "config.json"
-        config_data = {"rest_api": {"port": 5000}}
+        config_data = {"rest_api": {"port": 5100}}
         config_file.write_text(json.dumps(config_data))
 
         os.chdir(tmp_path)
@@ -381,12 +381,12 @@ class TestLoadConfig:
         # Defaults preserved
         assert config.rest_api.enabled is True
         assert config.rest_api.host == "127.0.0.1"
-        assert config.socket.port == 5001
+        assert config.socket.port == 5101
 
     def test_load_config_env_priority_over_file(self, tmp_path: Path) -> None:
         """Test that environment variables have priority over file."""
         config_file = tmp_path / "config.json"
-        config_data = {"rest_api": {"port": 5000}}
+        config_data = {"rest_api": {"port": 5100}}
         config_file.write_text(json.dumps(config_data))
 
         os.chdir(tmp_path)
@@ -411,6 +411,6 @@ class TestLoadConfig:
             config = load_config("nonexistent.json")
 
         # Should still load with defaults
-        assert config.rest_api.port == 5000
+        assert config.rest_api.port == 5100
         # Should log warnings
         assert "Ignoring" in caplog.text or "Unknown" in caplog.text

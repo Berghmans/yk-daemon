@@ -6,8 +6,8 @@ This directory contains example client scripts demonstrating how to interact wit
 
 The YubiKey daemon exposes two interfaces for client communication:
 
-1. **REST API** (HTTP/JSON) - Port 5000 (default)
-2. **Socket Server** (TCP/Text) - Port 5001 (default)
+1. **REST API** (HTTP/JSON) - Port 5100 (default)
+2. **Socket Server** (TCP/Text) - Port 5101 (default)
 
 Both interfaces provide the same functionality:
 - List OATH accounts on YubiKey
@@ -120,7 +120,7 @@ python get_totp.py
 
 ### REST API Endpoints
 
-**Base URL:** `http://127.0.0.1:5000`
+**Base URL:** `http://127.0.0.1:5100`
 
 | Endpoint | Method | Description | Response |
 |----------|--------|-------------|----------|
@@ -132,21 +132,21 @@ python get_totp.py
 **Example requests:**
 ```bash
 # Health check
-curl http://127.0.0.1:5000/health
+curl http://127.0.0.1:5100/health
 
 # List accounts
-curl http://127.0.0.1:5000/api/accounts
+curl http://127.0.0.1:5100/api/accounts
 
 # Get default TOTP
-curl http://127.0.0.1:5000/api/totp
+curl http://127.0.0.1:5100/api/totp
 
 # Get specific account TOTP
-curl http://127.0.0.1:5000/api/totp/GitHub
+curl http://127.0.0.1:5100/api/totp/GitHub
 ```
 
 ### Socket Protocol
 
-**Connection:** TCP to `127.0.0.1:5001`
+**Connection:** TCP to `127.0.0.1:5101`
 
 **Protocol:** Line-based, commands end with `\n`
 
@@ -163,13 +163,13 @@ curl http://127.0.0.1:5000/api/totp/GitHub
 **Example using netcat:**
 ```bash
 # List accounts
-echo "LIST_ACCOUNTS" | nc 127.0.0.1 5001
+echo "LIST_ACCOUNTS" | nc 127.0.0.1 5101
 
 # Get default TOTP
-echo "GET_TOTP" | nc 127.0.0.1 5001
+echo "GET_TOTP" | nc 127.0.0.1 5101
 
 # Get specific account TOTP
-echo "GET_TOTP GitHub" | nc 127.0.0.1 5001
+echo "GET_TOTP GitHub" | nc 127.0.0.1 5101
 ```
 
 ## Usage from WSL
@@ -270,8 +270,8 @@ ERROR Touch timeout - please touch YubiKey
 ps aux | grep -E "(rest_api|socket_server)"
 
 # Test network connectivity
-nc -zv 127.0.0.1 5000  # REST API
-nc -zv 127.0.0.1 5001  # Socket server
+nc -zv 127.0.0.1 5100  # REST API
+nc -zv 127.0.0.1 5101  # Socket server
 
 # Check YubiKey detection
 ykman oath accounts list

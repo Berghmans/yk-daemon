@@ -23,11 +23,11 @@ This is a Windows daemon written in Python that bridges YubiKey OATH-TOTP functi
 - Require physical touch for each TOTP generation
 
 ### Communication Protocols
-- **REST API**: Flask on port 5000 (default)
+- **REST API**: Flask on port 5100 (default)
   - JSON responses
   - Simple GET endpoints
   - Health check endpoint
-- **Socket Server**: TCP on port 5001 (default)
+- **Socket Server**: TCP on port 5101 (default)
   - Line-based protocol (commands end with `\n`)
   - Simple text responses: `OK <result>` or `ERROR <message>`
 
