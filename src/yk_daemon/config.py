@@ -183,6 +183,47 @@ class Config:
         if not self.rest_api.enabled and not self.socket.enabled:
             raise ConfigurationError("At least one of rest_api or socket must be enabled")
 
+    def to_dict(self) -> dict[str, Any]:
+        """Convert config to dictionary suitable for JSON serialization.
+
+        Returns:
+            Dictionary representation of the configuration
+        """
+        return {
+            "rest_api": {
+                "enabled": self.rest_api.enabled,
+                "host": self.rest_api.host,
+                "port": self.rest_api.port,
+            },
+            "socket": {
+                "enabled": self.socket.enabled,
+                "host": self.socket.host,
+                "port": self.socket.port,
+            },
+            "notifications": {
+                "popup": self.notifications.popup,
+                "sound": self.notifications.sound,
+                "sound_file": self.notifications.sound_file,
+            },
+            "logging": {
+                "level": self.logging.level,
+                "file": self.logging.file,
+            },
+        }
+
+    def save_to_file(self, file_path: str) -> None:
+        """Save configuration to JSON file.
+
+        Args:
+            file_path: Path to save configuration file
+
+        Raises:
+            OSError: If file cannot be written
+        """
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(self.to_dict(), f, indent=2)
+            f.write("\n")  # Add trailing newline
+
 
 def load_config(config_file: str = "config.json") -> Config:
     """Load configuration from file and environment variables.

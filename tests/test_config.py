@@ -236,6 +236,37 @@ class TestConfig:
         config.socket.port = 5101
         config.validate()  # Should not raise
 
+    def test_to_dict(self) -> None:
+        """Test converting config to dictionary."""
+        config = Config()
+        config_dict = config.to_dict()
+
+        assert "rest_api" in config_dict
+        assert "socket" in config_dict
+        assert "notifications" in config_dict
+        assert "logging" in config_dict
+
+        assert config_dict["rest_api"]["enabled"] == config.rest_api.enabled
+        assert config_dict["rest_api"]["port"] == config.rest_api.port
+        assert config_dict["socket"]["port"] == config.socket.port
+        assert config_dict["logging"]["level"] == config.logging.level
+
+    def test_save_to_file(self, tmp_path: Path) -> None:
+        """Test saving config to file."""
+        config = Config()
+        config.rest_api.port = 8080
+        config.logging.level = "DEBUG"
+
+        config_file = tmp_path / "test_config.json"
+        config.save_to_file(str(config_file))
+
+        assert config_file.exists()
+
+        # Load and verify
+        loaded_config = load_config(str(config_file))
+        assert loaded_config.rest_api.port == 8080
+        assert loaded_config.logging.level == "DEBUG"
+
 
 class TestLoadConfig:
     """Tests for load_config function."""

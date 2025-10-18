@@ -239,14 +239,27 @@ class ServiceManager:
     def _setup_service_directory(self) -> None:
         """Setup service data directory and copy required files.
 
-        Creates C:\\ProgramData\\yk-daemon and copies notification.wav if needed.
+        Creates C:\\ProgramData\\yk-daemon, creates default config.json,
+        and copies notification.wav if needed.
         """
         import shutil
         from pathlib import Path
 
+        from yk_daemon.config import Config
+
         # Get service directory
         service_dir = get_service_config_path().replace("config.json", "").rstrip("/\\")
         os.makedirs(service_dir, exist_ok=True)
+
+        # Create default config.json if it doesn't exist
+        config_file = os.path.join(service_dir, "config.json")
+        if not os.path.exists(config_file):
+            # Create a config with all defaults and save to file
+            default_config = Config()
+            default_config.save_to_file(config_file)
+            print(f"Created default config.json at {config_file}")
+        else:
+            print(f"config.json already exists at {config_file}")
 
         # Find and copy notification.wav
         notification_dest = os.path.join(service_dir, "notification.wav")
