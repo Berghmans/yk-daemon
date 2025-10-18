@@ -43,21 +43,21 @@ class TestRestApiConfig:
     def test_validate_invalid_enabled_type(self) -> None:
         """Test validation fails for invalid enabled type."""
         config = RestApiConfig()
-        config.enabled = "true"  # type: ignore
+        config.enabled = "true"  # type: ignore[assignment]  # Intentional for testing validation
         with pytest.raises(ConfigurationError, match="rest_api.enabled must be a boolean"):
             config.validate()
 
     def test_validate_invalid_host_type(self) -> None:
         """Test validation fails for invalid host type."""
         config = RestApiConfig()
-        config.host = 127001  # type: ignore
+        config.host = 127001  # type: ignore[assignment]  # Intentional for testing validation
         with pytest.raises(ConfigurationError, match="rest_api.host must be a string"):
             config.validate()
 
     def test_validate_invalid_port_type(self) -> None:
         """Test validation fails for invalid port type."""
         config = RestApiConfig()
-        config.port = "5100"  # type: ignore
+        config.port = "5100"  # type: ignore[assignment]  # Intentional for testing validation
         with pytest.raises(ConfigurationError, match="rest_api.port must be an integer"):
             config.validate()
 
@@ -134,15 +134,18 @@ class TestNotificationsConfig:
     def test_validate_invalid_popup_type(self) -> None:
         """Test validation fails for invalid popup type."""
         config = NotificationsConfig()
-        config.popup = "yes"  # type: ignore
+        config.popup = "yes"  # type: ignore[assignment]  # Intentional for testing validation
         with pytest.raises(ConfigurationError, match="notifications.popup must be a boolean"):
             config.validate()
 
-    def test_validate_warns_missing_sound_file(self, caplog: pytest.LogCaptureFixture) -> None:
-        """Test validation warns when sound file doesn't exist."""
+    def test_validate_allows_missing_sound_file(self) -> None:
+        """Test validation passes even when sound file doesn't exist.
+
+        File existence is checked by Notifier class during initialization,
+        not during config validation.
+        """
         config = NotificationsConfig(sound=True, sound_file="nonexistent.wav")
-        config.validate()
-        assert "does not exist" in caplog.text
+        config.validate()  # Should not raise or warn
 
 
 class TestLoggingConfig:
@@ -180,7 +183,7 @@ class TestLoggingConfig:
     def test_validate_invalid_level_type(self) -> None:
         """Test validation fails for invalid level type."""
         config = LoggingConfig()
-        config.level = 123  # type: ignore
+        config.level = 123  # type: ignore[assignment]  # Intentional for testing validation
         with pytest.raises(ConfigurationError, match="logging.level must be a string"):
             config.validate()
 
@@ -233,9 +236,54 @@ class TestConfig:
         config.socket.port = 5101
         config.validate()  # Should not raise
 
+    def test_to_dict(self) -> None:
+        """Test converting config to dictionary."""
+        config = Config()
+        config_dict = config.to_dict()
+
+        assert "rest_api" in config_dict
+        assert "socket" in config_dict
+        assert "notifications" in config_dict
+        assert "logging" in config_dict
+
+        assert config_dict["rest_api"]["enabled"] == config.rest_api.enabled
+        assert config_dict["rest_api"]["port"] == config.rest_api.port
+        assert config_dict["socket"]["port"] == config.socket.port
+        assert config_dict["logging"]["level"] == config.logging.level
+
+    def test_save_to_file(self, tmp_path: Path) -> None:
+        """Test saving config to file."""
+        config = Config()
+        config.rest_api.port = 8080
+        config.logging.level = "DEBUG"
+
+        config_file = tmp_path / "test_config.json"
+        config.save_to_file(str(config_file))
+
+        assert config_file.exists()
+
+        # Load and verify
+        loaded_config = load_config(str(config_file))
+        assert loaded_config.rest_api.port == 8080
+        assert loaded_config.logging.level == "DEBUG"
+
 
 class TestLoadConfig:
     """Tests for load_config function."""
+
+    def test_build_config_with_factory_defaults(self) -> None:
+        """Test that _build_config_from_dict works with field(default_factory=...) defaults.
+
+        This test ensures we don't try to access LoggingConfig.file as a class attribute,
+        which would fail because it uses default_factory instead of a simple default.
+        """
+        from yk_daemon.config import _build_config_from_dict
+
+        # Empty dict should use all defaults, including factory defaults
+        config = _build_config_from_dict({})
+        assert config.logging.level == "INFO"
+        assert config.logging.file  # Should have a value from factory
+        assert isinstance(config.logging.file, str)
 
     def test_load_config_no_file_uses_defaults(self, tmp_path: Path) -> None:
         """Test loading config without file uses defaults."""
@@ -246,6 +294,9 @@ class TestLoadConfig:
         assert config.rest_api.port == 5100
         assert config.socket.enabled is True
         assert config.socket.port == 5101
+        assert config.logging.level == "INFO"
+        assert config.logging.file  # Ensure log file path is set
+        assert config.notifications.popup is True
 
     def test_load_config_from_file(self, tmp_path: Path) -> None:
         """Test loading config from JSON file."""

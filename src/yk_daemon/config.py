@@ -22,6 +22,43 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
+def _get_default_log_path() -> str:
+    """Get the default log file path.
+
+    Uses ProgramData on Windows for service compatibility,
+    or current directory otherwise.
+
+    Returns:
+        Default log file path
+    """
+    if os.name == "nt":  # Windows
+        program_data = os.environ.get("PROGRAMDATA", "C:\\ProgramData")
+        log_dir = os.path.join(program_data, "yk-daemon")
+        os.makedirs(log_dir, exist_ok=True)
+        return os.path.join(log_dir, "yk-daemon.log")
+    else:
+        # Non-Windows: use current directory
+        return "yk-daemon.log"
+
+
+def _get_default_sound_file_path() -> str:
+    """Get the default notification sound file path.
+
+    Uses ProgramData on Windows for service compatibility,
+    or current directory otherwise.
+
+    Returns:
+        Default notification sound file path
+    """
+    if os.name == "nt":  # Windows
+        program_data = os.environ.get("PROGRAMDATA", "C:\\ProgramData")
+        sound_dir = os.path.join(program_data, "yk-daemon")
+        return os.path.join(sound_dir, "notification.wav")
+    else:
+        # Non-Windows: use current directory
+        return "notification.wav"
+
+
 class ConfigurationError(Exception):
     """Raised when configuration is invalid."""
 
@@ -84,7 +121,7 @@ class NotificationsConfig:
 
     popup: bool = True
     sound: bool = True
-    sound_file: str = "notification.wav"
+    sound_file: str = field(default_factory=lambda: _get_default_sound_file_path())
 
     def validate(self) -> None:
         """Validate notifications configuration."""
@@ -94,17 +131,8 @@ class NotificationsConfig:
             raise ConfigurationError("notifications.sound must be a boolean")
         if not isinstance(self.sound_file, str):
             raise ConfigurationError("notifications.sound_file must be a string")
-        if self.sound and self.sound_file:
-            # Check if sound file exists (warning, not error)
-            sound_path = Path(self.sound_file)
-            if not sound_path.is_absolute():
-                # Try relative to current directory or common locations
-                sound_path = Path.cwd() / self.sound_file
-            if not sound_path.exists():
-                logger.warning(
-                    f"Sound file '{self.sound_file}' does not exist. "
-                    "Sound notifications will fail until a valid file is provided."
-                )
+        # Note: Sound file existence is validated by Notifier class during initialization
+        # which has more sophisticated path resolution logic
 
 
 @dataclass
@@ -112,7 +140,7 @@ class LoggingConfig:
     """Logging configuration."""
 
     level: str = "INFO"
-    file: str = "yk-daemon.log"
+    file: str = field(default_factory=lambda: _get_default_log_path())
 
     def validate(self) -> None:
         """Validate logging configuration."""
@@ -154,6 +182,47 @@ class Config:
 
         if not self.rest_api.enabled and not self.socket.enabled:
             raise ConfigurationError("At least one of rest_api or socket must be enabled")
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert config to dictionary suitable for JSON serialization.
+
+        Returns:
+            Dictionary representation of the configuration
+        """
+        return {
+            "rest_api": {
+                "enabled": self.rest_api.enabled,
+                "host": self.rest_api.host,
+                "port": self.rest_api.port,
+            },
+            "socket": {
+                "enabled": self.socket.enabled,
+                "host": self.socket.host,
+                "port": self.socket.port,
+            },
+            "notifications": {
+                "popup": self.notifications.popup,
+                "sound": self.notifications.sound,
+                "sound_file": self.notifications.sound_file,
+            },
+            "logging": {
+                "level": self.logging.level,
+                "file": self.logging.file,
+            },
+        }
+
+    def save_to_file(self, file_path: str) -> None:
+        """Save configuration to JSON file.
+
+        Args:
+            file_path: Path to save configuration file
+
+        Raises:
+            OSError: If file cannot be written
+        """
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(self.to_dict(), f, indent=2)
+            f.write("\n")  # Add trailing newline
 
 
 def load_config(config_file: str = "config.json") -> Config:
@@ -338,13 +407,13 @@ def _build_config_from_dict(config_dict: dict[str, Any]) -> Config:
     notifications = NotificationsConfig(
         popup=notifications_dict.get("popup", NotificationsConfig.popup),
         sound=notifications_dict.get("sound", NotificationsConfig.sound),
-        sound_file=notifications_dict.get("sound_file", NotificationsConfig.sound_file),
+        sound_file=notifications_dict.get("sound_file", _get_default_sound_file_path()),
     )
 
     logging_dict = config_dict.get("logging", {})
     logging_config = LoggingConfig(
         level=logging_dict.get("level", LoggingConfig.level),
-        file=logging_dict.get("file", LoggingConfig.file),
+        file=logging_dict.get("file", _get_default_log_path()),
     )
 
     return Config(

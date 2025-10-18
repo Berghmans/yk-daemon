@@ -71,6 +71,7 @@ module = [
     "win32serviceutil.*",
     "win32service.*",
     "win32event.*",
+    "win32traceutil.*",
 ]
 ignore_missing_imports = true
 
