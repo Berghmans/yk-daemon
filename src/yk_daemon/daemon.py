@@ -265,6 +265,12 @@ Examples:
   %(prog)s                          # Run with default config
   %(prog)s --debug                  # Run in foreground with debug logging
   %(prog)s --config custom.json     # Use custom config file
+
+Windows Service Management:
+  %(prog)s --install                # Install as Windows service
+  %(prog)s --start                  # Start the Windows service
+  %(prog)s --stop                   # Stop the Windows service
+  %(prog)s --remove                 # Remove/uninstall the Windows service
         """,
     )
 
@@ -288,6 +294,31 @@ Examples:
         version="%(prog)s 0.1.0",
     )
 
+    # Windows service management arguments
+    parser.add_argument(
+        "--install",
+        action="store_true",
+        help="Install as Windows service",
+    )
+
+    parser.add_argument(
+        "--start",
+        action="store_true",
+        help="Start the Windows service",
+    )
+
+    parser.add_argument(
+        "--stop",
+        action="store_true",
+        help="Stop the Windows service",
+    )
+
+    parser.add_argument(
+        "--remove",
+        action="store_true",
+        help="Remove/uninstall the Windows service",
+    )
+
     return parser.parse_args()
 
 
@@ -295,6 +326,30 @@ def main() -> NoReturn:
     """Main entry point."""
     # Parse arguments first (before logging setup)
     args = parse_arguments()
+
+    # Handle Windows service commands
+    if any([args.install, args.start, args.stop, args.remove]):
+        # Import service module and delegate to ServiceManager
+        try:
+            from yk_daemon.service import ServiceManager
+
+            manager = ServiceManager()
+            success = True
+
+            if args.install:
+                success = manager.install(args.config)
+            elif args.start:
+                success = manager.start()
+            elif args.stop:
+                success = manager.stop()
+            elif args.remove:
+                success = manager.remove()
+
+            sys.exit(0 if success else 1)
+
+        except (ImportError, RuntimeError) as e:
+            print(f"ERROR: {e}", file=sys.stderr)
+            sys.exit(1)
 
     # Load configuration
     try:
