@@ -84,15 +84,30 @@ def get_service_config_path() -> str:
 
 def run_daemon_process() -> None:
     """Run daemon in a separate process (called via multiprocessing)."""
+    # Set up basic logging FIRST so we can capture early errors
+    # This is critical for Windows services where stdout/stderr go nowhere
+    log_file = _get_default_log_path()
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        handlers=[logging.FileHandler(log_file, encoding="utf-8")],
+    )
+
     try:
+        logger.info("=" * 60)
+        logger.info("Service process starting...")
+
         # Get config path appropriate for service
         config_path = get_service_config_path()
+        logger.info(f"Config path: {config_path}")
 
         # Load configuration
         config = load_config(config_path)
+        logger.info("Configuration loaded successfully")
 
-        # Setup logging
+        # Setup full logging from config (replaces basic setup)
         setup_logging(config, debug=False)
+        logger.info("Logging configured from config file")
 
         # Import and run daemon - all logic is in daemon.py
         from yk_daemon.daemon import run_daemon
@@ -101,8 +116,10 @@ def run_daemon_process() -> None:
 
     except ConfigurationError as e:
         logger.error(f"Configuration error: {e}", exc_info=True)
+        raise
     except Exception as e:
         logger.error(f"Daemon process error: {e}", exc_info=True)
+        raise
 
 
 if WINDOWS_SERVICE_AVAILABLE:
