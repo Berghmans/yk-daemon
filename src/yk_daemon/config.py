@@ -41,6 +41,24 @@ def _get_default_log_path() -> str:
         return "yk-daemon.log"
 
 
+def _get_default_sound_file_path() -> str:
+    """Get the default notification sound file path.
+
+    Uses ProgramData on Windows for service compatibility,
+    or current directory otherwise.
+
+    Returns:
+        Default notification sound file path
+    """
+    if os.name == "nt":  # Windows
+        program_data = os.environ.get("PROGRAMDATA", "C:\\ProgramData")
+        sound_dir = os.path.join(program_data, "yk-daemon")
+        return os.path.join(sound_dir, "notification.wav")
+    else:
+        # Non-Windows: use current directory
+        return "notification.wav"
+
+
 class ConfigurationError(Exception):
     """Raised when configuration is invalid."""
 
@@ -103,7 +121,7 @@ class NotificationsConfig:
 
     popup: bool = True
     sound: bool = True
-    sound_file: str = "notification.wav"
+    sound_file: str = field(default_factory=lambda: _get_default_sound_file_path())
 
     def validate(self) -> None:
         """Validate notifications configuration."""
@@ -357,7 +375,7 @@ def _build_config_from_dict(config_dict: dict[str, Any]) -> Config:
     notifications = NotificationsConfig(
         popup=notifications_dict.get("popup", NotificationsConfig.popup),
         sound=notifications_dict.get("sound", NotificationsConfig.sound),
-        sound_file=notifications_dict.get("sound_file", NotificationsConfig.sound_file),
+        sound_file=notifications_dict.get("sound_file", _get_default_sound_file_path()),
     )
 
     logging_dict = config_dict.get("logging", {})

@@ -43,21 +43,21 @@ class TestRestApiConfig:
     def test_validate_invalid_enabled_type(self) -> None:
         """Test validation fails for invalid enabled type."""
         config = RestApiConfig()
-        config.enabled = "true"  # noqa: Assignment to wrong type for testing
+        config.enabled = "true"  # type: ignore[assignment]  # Intentional for testing validation
         with pytest.raises(ConfigurationError, match="rest_api.enabled must be a boolean"):
             config.validate()
 
     def test_validate_invalid_host_type(self) -> None:
         """Test validation fails for invalid host type."""
         config = RestApiConfig()
-        config.host = 127001  # noqa: Assignment to wrong type for testing
+        config.host = 127001  # type: ignore[assignment]  # Intentional for testing validation
         with pytest.raises(ConfigurationError, match="rest_api.host must be a string"):
             config.validate()
 
     def test_validate_invalid_port_type(self) -> None:
         """Test validation fails for invalid port type."""
         config = RestApiConfig()
-        config.port = "5100"  # noqa: Assignment to wrong type for testing
+        config.port = "5100"  # type: ignore[assignment]  # Intentional for testing validation
         with pytest.raises(ConfigurationError, match="rest_api.port must be an integer"):
             config.validate()
 
@@ -134,7 +134,7 @@ class TestNotificationsConfig:
     def test_validate_invalid_popup_type(self) -> None:
         """Test validation fails for invalid popup type."""
         config = NotificationsConfig()
-        config.popup = "yes"  # noqa: Assignment to wrong type for testing
+        config.popup = "yes"  # type: ignore[assignment]  # Intentional for testing validation
         with pytest.raises(ConfigurationError, match="notifications.popup must be a boolean"):
             config.validate()
 
@@ -180,7 +180,7 @@ class TestLoggingConfig:
     def test_validate_invalid_level_type(self) -> None:
         """Test validation fails for invalid level type."""
         config = LoggingConfig()
-        config.level = 123  # noqa: Assignment to wrong type for testing
+        config.level = 123  # type: ignore[assignment]  # Intentional for testing validation
         with pytest.raises(ConfigurationError, match="logging.level must be a string"):
             config.validate()
 

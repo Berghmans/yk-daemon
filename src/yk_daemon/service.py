@@ -14,7 +14,12 @@ import os
 import sys
 import time
 
-from yk_daemon.config import ConfigurationError, _get_default_log_path, load_config
+from yk_daemon.config import (
+    ConfigurationError,
+    _get_default_log_path,
+    _get_default_sound_file_path,
+    load_config,
+)
 from yk_daemon.daemon import setup_logging
 
 # Only import Windows-specific modules on Windows
@@ -231,6 +236,49 @@ class ServiceManager:
         self.service_display_name = self.service_class._svc_display_name_
         self.service_class_string = f"{self.service_class.__module__}.{self.service_class.__name__}"
 
+    def _setup_service_directory(self) -> None:
+        """Setup service data directory and copy required files.
+
+        Creates C:\\ProgramData\\yk-daemon and copies notification.wav if needed.
+        """
+        import shutil
+        from pathlib import Path
+
+        # Get service directory
+        service_dir = get_service_config_path().replace("config.json", "").rstrip("/\\")
+        os.makedirs(service_dir, exist_ok=True)
+
+        # Find and copy notification.wav
+        notification_dest = os.path.join(service_dir, "notification.wav")
+
+        if not os.path.exists(notification_dest):
+            # Try to find notification.wav in several locations
+            search_paths = [
+                # In current directory
+                Path("notification.wav"),
+                # In package directory
+                Path(__file__).parent.parent.parent / "notification.wav",
+                # In site-packages (installed package)
+                Path(sys.prefix) / "share" / "yk-daemon" / "notification.wav",
+            ]
+
+            source_file = None
+            for path in search_paths:
+                if path.exists():
+                    source_file = path
+                    break
+
+            if source_file:
+                shutil.copy2(source_file, notification_dest)
+                print(f"Copied notification.wav to {notification_dest}")
+            else:
+                print(
+                    f"WARNING: notification.wav not found. "
+                    f"Sound notifications will not work until you copy a .wav file to {notification_dest}"
+                )
+        else:
+            print(f"notification.wav already exists at {notification_dest}")
+
     def install(self, config_path: str = "config.json") -> bool:
         """Install the Windows service.
 
@@ -247,6 +295,9 @@ class ServiceManager:
             print(f"Using Python: {sys.executable}")
             print(f"Script: {os.path.abspath(__file__)}")
 
+            # Setup service data directory
+            self._setup_service_directory()
+
             # Register python.exe directly instead of pythonservice.exe
             win32serviceutil.InstallService(  # type: ignore
                 self.service_class_string,
@@ -259,10 +310,13 @@ class ServiceManager:
 
             print(f"Service '{self.service_display_name}' installed successfully")
             print()
-            print("Configuration and log file locations:")
+            print("Service file locations:")
             config_path_service = get_service_config_path()
-            print(f"  Config: {config_path_service}")
-            print(f"  Log:    {_get_default_log_path()}")
+            service_dir = os.path.dirname(config_path_service)
+            print(f"  Directory:     {service_dir}")
+            print(f"  Config:        {config_path_service}")
+            print(f"  Log:           {_get_default_log_path()}")
+            print(f"  Notification:  {_get_default_sound_file_path()}")
             print()
             print("The service will start automatically on system boot")
             print("You can start it manually using:")
