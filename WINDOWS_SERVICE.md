@@ -12,9 +12,20 @@ C:\ProgramData\yk-daemon\config.json
 **Override:** Set the `YK_DAEMON_CONFIG_PATH` environment variable to use a different location.
 
 ### Log File
-```
-C:\ProgramData\yk-daemon\yk-daemon.log
-```
+
+The service attempts to write logs to the following locations (in priority order):
+
+1. **Primary location** (preferred):
+   ```
+   C:\ProgramData\yk-daemon\yk-daemon.log
+   ```
+
+2. **Fallback location** (if ProgramData is not writable):
+   ```
+   C:\Users\<YourUser>\AppData\Local\Temp\yk-daemon.log
+   ```
+
+The actual log file location is logged at the start of each service run.
 
 **Override:** Set the `logging.file` path in your config.json to use a different location.
 
@@ -67,9 +78,22 @@ yk-daemon --install
 
 ## Checking Logs
 
-View the log file:
+View the log file (check primary location first):
 ```powershell
+# Primary location
 Get-Content C:\ProgramData\yk-daemon\yk-daemon.log -Tail 50 -Wait
+
+# If not found, check fallback location
+Get-Content $env:TEMP\yk-daemon.log -Tail 50 -Wait
+```
+
+To find which location is being used:
+```powershell
+# Check if primary exists
+Test-Path C:\ProgramData\yk-daemon\yk-daemon.log
+
+# Check if fallback exists
+Test-Path $env:TEMP\yk-daemon.log
 ```
 
 ## Service Management
