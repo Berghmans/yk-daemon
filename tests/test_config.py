@@ -43,21 +43,21 @@ class TestRestApiConfig:
     def test_validate_invalid_enabled_type(self) -> None:
         """Test validation fails for invalid enabled type."""
         config = RestApiConfig()
-        config.enabled = "true"  # type: ignore
+        config.enabled = "true"  # noqa: Assignment to wrong type for testing
         with pytest.raises(ConfigurationError, match="rest_api.enabled must be a boolean"):
             config.validate()
 
     def test_validate_invalid_host_type(self) -> None:
         """Test validation fails for invalid host type."""
         config = RestApiConfig()
-        config.host = 127001  # type: ignore
+        config.host = 127001  # noqa: Assignment to wrong type for testing
         with pytest.raises(ConfigurationError, match="rest_api.host must be a string"):
             config.validate()
 
     def test_validate_invalid_port_type(self) -> None:
         """Test validation fails for invalid port type."""
         config = RestApiConfig()
-        config.port = "5100"  # type: ignore
+        config.port = "5100"  # noqa: Assignment to wrong type for testing
         with pytest.raises(ConfigurationError, match="rest_api.port must be an integer"):
             config.validate()
 
@@ -134,7 +134,7 @@ class TestNotificationsConfig:
     def test_validate_invalid_popup_type(self) -> None:
         """Test validation fails for invalid popup type."""
         config = NotificationsConfig()
-        config.popup = "yes"  # type: ignore
+        config.popup = "yes"  # noqa: Assignment to wrong type for testing
         with pytest.raises(ConfigurationError, match="notifications.popup must be a boolean"):
             config.validate()
 
@@ -180,7 +180,7 @@ class TestLoggingConfig:
     def test_validate_invalid_level_type(self) -> None:
         """Test validation fails for invalid level type."""
         config = LoggingConfig()
-        config.level = 123  # type: ignore
+        config.level = 123  # noqa: Assignment to wrong type for testing
         with pytest.raises(ConfigurationError, match="logging.level must be a string"):
             config.validate()
 
@@ -237,6 +237,20 @@ class TestConfig:
 class TestLoadConfig:
     """Tests for load_config function."""
 
+    def test_build_config_with_factory_defaults(self) -> None:
+        """Test that _build_config_from_dict works with field(default_factory=...) defaults.
+
+        This test ensures we don't try to access LoggingConfig.file as a class attribute,
+        which would fail because it uses default_factory instead of a simple default.
+        """
+        from yk_daemon.config import _build_config_from_dict
+
+        # Empty dict should use all defaults, including factory defaults
+        config = _build_config_from_dict({})
+        assert config.logging.level == "INFO"
+        assert config.logging.file  # Should have a value from factory
+        assert isinstance(config.logging.file, str)
+
     def test_load_config_no_file_uses_defaults(self, tmp_path: Path) -> None:
         """Test loading config without file uses defaults."""
         os.chdir(tmp_path)
@@ -246,6 +260,9 @@ class TestLoadConfig:
         assert config.rest_api.port == 5100
         assert config.socket.enabled is True
         assert config.socket.port == 5101
+        assert config.logging.level == "INFO"
+        assert config.logging.file  # Ensure log file path is set
+        assert config.notifications.popup is True
 
     def test_load_config_from_file(self, tmp_path: Path) -> None:
         """Test loading config from JSON file."""
