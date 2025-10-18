@@ -5,8 +5,8 @@
 # using standard command-line tools like curl and netcat (nc).
 #
 # Protocol Information:
-# - REST API: HTTP/JSON on port 5000 (default)
-# - Socket Server: Line-based TCP on port 5001 (default)
+# - REST API: HTTP/JSON on port 5100 (default)
+# - Socket Server: Line-based TCP on port 5101 (default)
 # - Both services bind to localhost (127.0.0.1)
 # - YubiKey touch required for TOTP generation
 #
@@ -15,8 +15,8 @@
 #
 # Options:
 #     --host HOST         API/socket host (default: 127.0.0.1)
-#     --rest-port PORT    REST API port (default: 5000)
-#     --socket-port PORT  Socket server port (default: 5001)
+#     --rest-port PORT    REST API port (default: 5100)
+#     --socket-port PORT  Socket server port (default: 5101)
 #     --account ACCOUNT   Specific account name for TOTP
 #     --rest-only         Only test REST API
 #     --socket-only       Only test socket server
@@ -34,8 +34,8 @@ set -euo pipefail
 
 # Default configuration
 HOST="127.0.0.1"
-REST_PORT="5000"
-SOCKET_PORT="5001"
+REST_PORT="5100"
+SOCKET_PORT="5101"
 ACCOUNT=""
 REST_ONLY=false
 SOCKET_ONLY=false
@@ -393,8 +393,8 @@ show_help() {
     echo
     echo "Options:"
     echo "  --host HOST         API/socket host (default: 127.0.0.1)"
-    echo "  --rest-port PORT    REST API port (default: 5000)"
-    echo "  --socket-port PORT  Socket server port (default: 5001)"
+    echo "  --rest-port PORT    REST API port (default: 5100)"
+    echo "  --socket-port PORT  Socket server port (default: 5101)"
     echo "  --account ACCOUNT   Specific account name for TOTP (optional)"
     echo "  --rest-only         Only test REST API"
     echo "  --socket-only       Only test socket server"

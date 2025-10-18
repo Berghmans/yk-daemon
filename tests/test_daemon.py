@@ -83,7 +83,7 @@ class TestServerManagement:
 
             mock_run_rest.side_effect = mock_server
 
-            config = Config(rest_api=RestApiConfig(host="127.0.0.1", port=5000))
+            config = Config(rest_api=RestApiConfig(host="127.0.0.1", port=5100))
             yubikey = MagicMock()
 
             # Reset shutdown event
@@ -109,7 +109,7 @@ class TestServerManagement:
             mock_server = MagicMock()
             mock_socket_class.return_value = mock_server
 
-            config = Config(socket=SocketConfig(host="127.0.0.1", port=5001))
+            config = Config(socket=SocketConfig(host="127.0.0.1", port=5101))
             yubikey = MagicMock()
 
             # Start server
@@ -117,7 +117,7 @@ class TestServerManagement:
 
             # Check server was created and started
             mock_socket_class.assert_called_once_with(
-                host="127.0.0.1", port=5001, yubikey_interface=yubikey
+                host="127.0.0.1", port=5101, yubikey_interface=yubikey
             )
             mock_server.start.assert_called_once()
 

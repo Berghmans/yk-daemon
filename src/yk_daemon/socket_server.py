@@ -34,14 +34,14 @@ class SocketServer:
     def __init__(
         self,
         host: str = "127.0.0.1",
-        port: int = 5001,
+        port: int = 5101,
         yubikey_interface: YubiKeyInterface | None = None,
     ) -> None:
         """Initialize the socket server.
 
         Args:
             host: Host to bind to (default: 127.0.0.1)
-            port: Port to listen on (default: 5001)
+            port: Port to listen on (default: 5101)
             yubikey_interface: YubiKey interface instance (optional)
         """
         self.host = host
