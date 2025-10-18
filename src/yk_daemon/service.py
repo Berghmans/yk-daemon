@@ -14,7 +14,7 @@ import os
 import sys
 import time
 
-from yk_daemon.config import ConfigurationError, load_config
+from yk_daemon.config import ConfigurationError, _get_default_log_path, load_config
 from yk_daemon.daemon import setup_logging
 
 # Only import Windows-specific modules on Windows
@@ -55,11 +55,41 @@ else:
 logger = logging.getLogger(__name__)
 
 
+def get_service_config_path() -> str:
+    """Get the configuration file path for the service.
+
+    Priority order:
+    1. YK_DAEMON_CONFIG_PATH environment variable
+    2. C:\\ProgramData\\yk-daemon\\config.json (Windows standard for service data)
+    3. config.json in current directory (fallback)
+
+    Returns:
+        Path to configuration file
+    """
+    # Check environment variable first
+    env_config = os.environ.get("YK_DAEMON_CONFIG_PATH")
+    if env_config:
+        return env_config
+
+    # Use ProgramData for service configuration (Windows standard)
+    program_data = os.environ.get("PROGRAMDATA", "C:\\ProgramData")
+    service_dir = os.path.join(program_data, "yk-daemon")
+    config_path = os.path.join(service_dir, "config.json")
+
+    # Create directory if it doesn't exist
+    os.makedirs(service_dir, exist_ok=True)
+
+    return config_path
+
+
 def run_daemon_process() -> None:
     """Run daemon in a separate process (called via multiprocessing)."""
     try:
+        # Get config path appropriate for service
+        config_path = get_service_config_path()
+
         # Load configuration
-        config = load_config("config.json")
+        config = load_config(config_path)
 
         # Setup logging
         setup_logging(config, debug=False)
@@ -197,6 +227,12 @@ class ServiceManager:
             )
 
             print(f"Service '{self.service_display_name}' installed successfully")
+            print()
+            print("Configuration and log file locations:")
+            config_path_service = get_service_config_path()
+            print(f"  Config: {config_path_service}")
+            print(f"  Log:    {_get_default_log_path()}")
+            print()
             print("The service will start automatically on system boot")
             print("You can start it manually using:")
             print(f"  sc start {self.service_name}")

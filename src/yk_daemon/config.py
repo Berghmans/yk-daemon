@@ -22,6 +22,25 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
+def _get_default_log_path() -> str:
+    """Get the default log file path.
+
+    Uses ProgramData on Windows for service compatibility,
+    or current directory otherwise.
+
+    Returns:
+        Default log file path
+    """
+    if os.name == "nt":  # Windows
+        program_data = os.environ.get("PROGRAMDATA", "C:\\ProgramData")
+        log_dir = os.path.join(program_data, "yk-daemon")
+        os.makedirs(log_dir, exist_ok=True)
+        return os.path.join(log_dir, "yk-daemon.log")
+    else:
+        # Non-Windows: use current directory
+        return "yk-daemon.log"
+
+
 class ConfigurationError(Exception):
     """Raised when configuration is invalid."""
 
@@ -112,7 +131,7 @@ class LoggingConfig:
     """Logging configuration."""
 
     level: str = "INFO"
-    file: str = "yk-daemon.log"
+    file: str = field(default_factory=lambda: _get_default_log_path())
 
     def validate(self) -> None:
         """Validate logging configuration."""
