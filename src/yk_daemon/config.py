@@ -131,17 +131,8 @@ class NotificationsConfig:
             raise ConfigurationError("notifications.sound must be a boolean")
         if not isinstance(self.sound_file, str):
             raise ConfigurationError("notifications.sound_file must be a string")
-        if self.sound and self.sound_file:
-            # Check if sound file exists (warning, not error)
-            sound_path = Path(self.sound_file)
-            if not sound_path.is_absolute():
-                # Try relative to current directory or common locations
-                sound_path = Path.cwd() / self.sound_file
-            if not sound_path.exists():
-                logger.warning(
-                    f"Sound file '{self.sound_file}' does not exist. "
-                    "Sound notifications will fail until a valid file is provided."
-                )
+        # Note: Sound file existence is validated by Notifier class during initialization
+        # which has more sophisticated path resolution logic
 
 
 @dataclass

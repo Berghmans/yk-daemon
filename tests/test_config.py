@@ -138,11 +138,14 @@ class TestNotificationsConfig:
         with pytest.raises(ConfigurationError, match="notifications.popup must be a boolean"):
             config.validate()
 
-    def test_validate_warns_missing_sound_file(self, caplog: pytest.LogCaptureFixture) -> None:
-        """Test validation warns when sound file doesn't exist."""
+    def test_validate_allows_missing_sound_file(self) -> None:
+        """Test validation passes even when sound file doesn't exist.
+
+        File existence is checked by Notifier class during initialization,
+        not during config validation.
+        """
         config = NotificationsConfig(sound=True, sound_file="nonexistent.wav")
-        config.validate()
-        assert "does not exist" in caplog.text
+        config.validate()  # Should not raise or warn
 
 
 class TestLoggingConfig:
