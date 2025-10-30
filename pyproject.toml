@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "yk-daemon"
-version = "0.1.0"
+version = "0.1.1"
 description = "Windows daemon that bridges YubiKey OATH-TOTP functionality to WSL and other local applications"
 authors = ["Olivier Berghmans"]
 readme = "README.md"

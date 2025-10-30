@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/Berghmans/yk-daemon/compare/v0.1.0...v0.1.1) (2025-10-30)
+
+
+### Bug Fixes
+
+* implement flexible account name matching for AWS ARN prefixes ([#26](https://github.com/Berghmans/yk-daemon/issues/26)) ([41a5d39](https://github.com/Berghmans/yk-daemon/commit/41a5d395ac0f5f32c311f5961785f60ec609e8a7))
+
 ## 0.1.0 (2025-10-18)
 
 
