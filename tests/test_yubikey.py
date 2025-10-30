@@ -408,3 +408,146 @@ class TestYubiKeyInterface:
 
         assert len(accounts) == 1
         assert "test@example.com" in accounts
+
+
+class TestAccountNameMatching:
+    """Test cases for account name matching using credential.id field."""
+
+    def test_find_matching_credential_by_name(self, yubikey_interface: YubiKeyInterface) -> None:
+        """Test finding credential with exact name match (fallback when id not available)."""
+        cred1 = Mock()
+        cred1.name = "test@example.com"
+        cred1.id = None
+        cred2 = Mock()
+        cred2.name = "other@example.com"
+        cred2.id = None
+        credentials = [cred1, cred2]
+
+        result = yubikey_interface._find_matching_credential("test@example.com", credentials)
+
+        assert len(result) == 1
+        assert result[0] == cred1
+
+    def test_find_matching_credential_by_id_with_arn_prefix(
+        self, yubikey_interface: YubiKeyInterface
+    ) -> None:
+        """Test finding credential by matching against credential.id (primary method)."""
+        cred = Mock()
+        cred.name = "aws:iam::123456:mfa/user"  # Library splits on first ':'
+        cred.id = b"arn:aws:iam::123456:mfa/user"  # id contains full original value
+        credentials = [cred]
+
+        # Query with full ARN should match credential.id
+        result = yubikey_interface._find_matching_credential(
+            "arn:aws:iam::123456:mfa/user", credentials
+        )
+
+        assert len(result) == 1
+        assert result[0] == cred
+
+    def test_find_matching_credential_by_name_fallback(
+        self, yubikey_interface: YubiKeyInterface
+    ) -> None:
+        """Test finding credential falls back to name when id doesn't match."""
+        cred = Mock()
+        cred.name = "aws:iam::123456:mfa/user"
+        cred.id = b"arn:aws:iam::123456:mfa/user"
+        credentials = [cred]
+
+        # Query with partial name should match via fallback to credential.name
+        result = yubikey_interface._find_matching_credential(
+            "aws:iam::123456:mfa/user", credentials
+        )
+
+        assert len(result) == 1
+        assert result[0] == cred
+
+    def test_find_matching_credential_no_match(self, yubikey_interface: YubiKeyInterface) -> None:
+        """Test finding credential returns empty list when no match found."""
+        cred = Mock()
+        cred.name = "test@example.com"
+        credentials = [cred]
+
+        result = yubikey_interface._find_matching_credential("nonexistent@example.com", credentials)
+
+        assert len(result) == 0
+
+    @patch("yk_daemon.yubikey.OathSession")
+    @patch("yk_daemon.yubikey.list_all_devices")
+    def test_generate_totp_with_arn_prefix(
+        self,
+        mock_list_devices: Mock,
+        mock_oath_session: Mock,
+        yubikey_interface: YubiKeyInterface,
+        mock_device: Mock,
+        mock_device_info: Mock,
+    ) -> None:
+        """Test generating TOTP with 'arn:' prefix in account name using credential.id."""
+        mock_list_devices.return_value = [(mock_device, mock_device_info)]
+
+        # Credential with name without prefix, but id with full ARN (as in real YubiKey)
+        cred = Mock()
+        cred.name = "aws:iam::123456:mfa/user"
+        cred.id = b"arn:aws:iam::123456:mfa/user"  # id contains full ARN
+
+        code = Mock()
+        code.value = "123456"
+
+        mock_session_instance = Mock()
+        mock_session_instance.list_credentials.return_value = [cred]
+        mock_session_instance.calculate_all.return_value = {cred: code}
+        mock_oath_session.return_value = mock_session_instance
+
+        # Query with arn: prefix should match via credential.id
+        result = yubikey_interface.generate_totp("arn:aws:iam::123456:mfa/user")
+
+        assert result == "123456"
+        mock_device._test_connection.close.assert_called_once()
+
+    @patch("yk_daemon.yubikey.OathSession")
+    @patch("yk_daemon.yubikey.list_all_devices")
+    def test_generate_totp_multiple_aws_accounts(
+        self,
+        mock_list_devices: Mock,
+        mock_oath_session: Mock,
+        yubikey_interface: YubiKeyInterface,
+        mock_device: Mock,
+        mock_device_info: Mock,
+    ) -> None:
+        """Test generating TOTP for multiple AWS accounts with flexible matching."""
+        mock_list_devices.return_value = [(mock_device, mock_device_info)]
+
+        # Multiple AWS credentials (as returned by library, with id containing full ARN)
+        cred1 = Mock()
+        cred1.name = "aws:iam::111111:mfa/olivier"
+        cred1.id = b"arn:aws:iam::111111:mfa/olivier"
+        cred2 = Mock()
+        cred2.name = "aws:iam::222222:mfa/yubikey"
+        cred2.id = b"arn:aws:iam::222222:mfa/yubikey"
+        cred3 = Mock()
+        cred3.name = "aws:iam::333333:mfa/test"
+        cred3.id = b"arn:aws:iam::333333:mfa/test"
+
+        code1 = Mock()
+        code1.value = "111111"
+        code2 = Mock()
+        code2.value = "222222"
+        code3 = Mock()
+        code3.value = "333333"
+
+        mock_session_instance = Mock()
+        mock_session_instance.list_credentials.return_value = [cred1, cred2, cred3]
+        mock_session_instance.calculate_all.return_value = {
+            cred1: code1,
+            cred2: code2,
+            cred3: code3,
+        }
+        mock_oath_session.return_value = mock_session_instance
+
+        # Test with arn: prefix (as shown by ykman CLI)
+        result1 = yubikey_interface.generate_totp("arn:aws:iam::222222:mfa/yubikey")
+        assert result1 == "222222"
+
+        # Test without arn: prefix (direct library format)
+        result2 = yubikey_interface.generate_totp("aws:iam::333333:mfa/test")
+        assert result2 == "333333"
