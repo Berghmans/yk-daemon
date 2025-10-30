@@ -70,6 +70,41 @@ class YubiKeyInterface:
         self._notifier = notifier
         logger.info("YubiKey interface initialized")
 
+    def _find_matching_credential(self, account: str, credentials: list[Any]) -> list[Any]:
+        """Find credential(s) matching the given account name.
+
+        The yubikey-manager library splits credential IDs on the first ':'
+        to create issuer and name fields, but the credential.id field contains
+        the original, full value (e.g., 'arn:aws:iam::123456:mfa/user').
+        We match against credential.id to support the full account name format.
+
+        Args:
+            account: Account name to search for (can be full ARN or partial name)
+            credentials: List of credential objects
+
+        Returns:
+            list[Any]: List of matching credentials (empty if no match)
+        """
+        for cred in credentials:
+            # Try matching against credential.id (the full, original credential string)
+            if hasattr(cred, "id") and cred.id:
+                # Decode bytes id to string for comparison
+                cred_id_str = (
+                    cred.id.decode("utf-8") if isinstance(cred.id, bytes) else str(cred.id)
+                )
+                if cred_id_str == account:
+                    logger.debug(f"Found match by credential.id for account: {account}")
+                    return [cred]
+
+            # Fallback: try exact match against credential.name
+            if cred.name == account:
+                logger.debug(f"Found exact match by name for account: {account}")
+                return [cred]
+
+        # No match found
+        logger.debug(f"No match found for account: {account}")
+        return []
+
     def detect_device(self) -> bool:
         """Detect if a YubiKey is connected.
 
@@ -151,6 +186,17 @@ class YubiKeyInterface:
                 raise DeviceNotFoundError("OATH session not initialized")
 
             credentials = self._oath_session.list_credentials()
+
+            # Debug: Log credential details to understand the structure
+            for cred in credentials:
+                issuer_value = cred.issuer if hasattr(cred, "issuer") else None
+                id_value = cred.id if hasattr(cred, "id") else None
+                logger.debug(
+                    f"Credential details - name: '{cred.name}', "
+                    f"issuer: '{issuer_value}', "
+                    f"id: '{id_value!r}'"
+                )
+
             account_names = [cred.name for cred in credentials]
 
             logger.info(f"Found {len(account_names)} OATH accounts")
@@ -199,14 +245,17 @@ class YubiKeyInterface:
                 return {} if account is None else ""
 
             # If specific account requested, filter to that account
+            matched_account_name: str | None = None
             if account:
-                matching_creds = [c for c in credentials if c.name == account]
+                matching_creds = self._find_matching_credential(account, credentials)
                 if not matching_creds:
                     available = [c.name for c in credentials]
                     raise AccountNotFoundError(
                         f"Account '{account}' not found. Available: {available}"
                     )
                 credentials = matching_creds
+                # Remember the actual credential name for result lookup
+                matched_account_name = matching_creds[0].name
 
             # Generate codes
             result: dict[str, str] = {}
@@ -247,8 +296,9 @@ class YubiKeyInterface:
                 logger.info(f"Generated TOTP codes for {len(result)} accounts")
 
                 # Return single code or dictionary
-                if account:
-                    return result.get(account, "")
+                if account and matched_account_name:
+                    # Use the matched account name (not the original query) to look up the result
+                    return result.get(matched_account_name, "")
                 return result
 
             except Exception as e:
