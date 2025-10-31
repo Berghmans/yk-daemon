@@ -59,6 +59,55 @@ def _get_default_sound_file_path() -> str:
         return "notification.wav"
 
 
+def get_default_config_path() -> str:
+    """Get the default configuration file path.
+
+    Search order:
+    1. YK_DAEMON_CONFIG_PATH environment variable
+    2. C:\\ProgramData\\yk-daemon\\config.json (Windows)
+    3. ~/.config/yk-daemon/config.json (Linux/macOS)
+    4. config.json in current directory (fallback)
+
+    Returns:
+        Path to configuration file
+    """
+    # Check environment variable first
+    env_config = os.environ.get("YK_DAEMON_CONFIG_PATH")
+    if env_config:
+        if os.path.exists(env_config):
+            return env_config
+        else:
+            logger.warning(
+                f"YK_DAEMON_CONFIG_PATH points to non-existent file: {env_config}, "
+                "falling back to default location"
+            )
+
+    # Platform-specific default locations
+    if os.name == "nt":  # Windows
+        program_data = os.environ.get("PROGRAMDATA", "C:\\ProgramData")
+        service_dir = os.path.join(program_data, "yk-daemon")
+        config_path = os.path.join(service_dir, "config.json")
+
+        # Create directory if it doesn't exist
+        os.makedirs(service_dir, exist_ok=True)
+
+        # Return this path even if config.json doesn't exist yet
+        # (it will be created by load_config with defaults if needed)
+        if os.path.exists(config_path):
+            return config_path
+    else:
+        # Linux/macOS - use XDG config directory
+        home = os.path.expanduser("~")
+        config_dir = os.path.join(home, ".config", "yk-daemon")
+        config_path = os.path.join(config_dir, "config.json")
+
+        if os.path.exists(config_path):
+            return config_path
+
+    # Fallback to current directory
+    return "config.json"
+
+
 class ConfigurationError(Exception):
     """Raised when configuration is invalid."""
 
@@ -246,26 +295,28 @@ def load_config(config_file: str = "config.json") -> Config:
 
     # Step 1: Load from config.json if it exists
     config_path = Path(config_file)
+    abs_config_path = config_path.absolute()
+
     if config_path.exists():
         try:
             with open(config_path, encoding="utf-8") as f:
                 file_config = json.load(f)
                 if not isinstance(file_config, dict):
                     raise ConfigurationError(
-                        f"Configuration file '{config_file}' must contain a JSON object"
+                        f"Configuration file '{abs_config_path}' must contain a JSON object"
                     )
                 config_dict = file_config
-                logger.info(f"Loaded configuration from {config_file}")
+                logger.info(f"Loaded configuration from: {abs_config_path}")
         except json.JSONDecodeError as e:
             raise ConfigurationError(
-                f"Failed to parse configuration file '{config_file}': {e}"
+                f"Failed to parse configuration file '{abs_config_path}': {e}"
             ) from e
         except OSError as e:
             raise ConfigurationError(
-                f"Failed to read configuration file '{config_file}': {e}"
+                f"Failed to read configuration file '{abs_config_path}': {e}"
             ) from e
     else:
-        logger.info(f"Configuration file '{config_file}' not found, using defaults")
+        logger.info(f"Configuration file not found: {abs_config_path}, using defaults")
 
     # Step 2: Apply environment variable overrides
     env_overrides = _load_env_overrides()

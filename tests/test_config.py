@@ -14,6 +14,7 @@ from yk_daemon.config import (
     NotificationsConfig,
     RestApiConfig,
     SocketConfig,
+    get_default_config_path,
     load_config,
 )
 
@@ -465,3 +466,92 @@ class TestLoadConfig:
         assert config.rest_api.port == 5100
         # Should log warnings
         assert "Ignoring" in caplog.text or "Unknown" in caplog.text
+
+
+class TestGetDefaultConfigPath:
+    """Tests for get_default_config_path function."""
+
+    def test_get_default_config_path_with_env_var(self, tmp_path: Path) -> None:
+        """Test that YK_DAEMON_CONFIG_PATH environment variable takes priority."""
+        config_file = tmp_path / "custom_config.json"
+        config_file.write_text("{}")
+
+        with patch.dict(os.environ, {"YK_DAEMON_CONFIG_PATH": str(config_file)}):
+            result = get_default_config_path()
+
+        assert result == str(config_file)
+
+    def test_get_default_config_path_with_nonexistent_env_var(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Test that nonexistent YK_DAEMON_CONFIG_PATH environment variable falls back."""
+        nonexistent = tmp_path / "nonexistent.json"
+
+        with patch.dict(os.environ, {"YK_DAEMON_CONFIG_PATH": str(nonexistent)}):
+            result = get_default_config_path()
+
+        # Should fall back to default location
+        assert result != str(nonexistent)
+        # Should log a warning
+        assert "YK_DAEMON_CONFIG_PATH" in caplog.text
+        assert "non-existent" in caplog.text
+
+    @patch("os.name", "nt")
+    def test_get_default_config_path_windows_existing(self, tmp_path: Path) -> None:
+        """Test Windows path when config exists in ProgramData."""
+        program_data = tmp_path / "ProgramData"
+        service_dir = program_data / "yk-daemon"
+        service_dir.mkdir(parents=True)
+        config_file = service_dir / "config.json"
+        config_file.write_text("{}")
+
+        with patch.dict(os.environ, {"PROGRAMDATA": str(program_data)}):
+            result = get_default_config_path()
+
+        assert result == str(config_file)
+
+    @patch("os.name", "nt")
+    def test_get_default_config_path_windows_creates_dir(self, tmp_path: Path) -> None:
+        """Test Windows path creates service directory if it doesn't exist."""
+        program_data = tmp_path / "ProgramData"
+
+        with patch.dict(os.environ, {"PROGRAMDATA": str(program_data)}):
+            result = get_default_config_path()
+
+        # Should create the directory
+        service_dir = program_data / "yk-daemon"
+        assert service_dir.exists()
+        # Should return fallback since config.json doesn't exist yet
+        assert result == "config.json"
+
+    @patch("os.name", "posix")
+    def test_get_default_config_path_linux_existing(self, tmp_path: Path) -> None:
+        """Test Linux path when config exists in ~/.config."""
+        config_dir = tmp_path / ".config" / "yk-daemon"
+        config_dir.mkdir(parents=True)
+        config_file = config_dir / "config.json"
+        config_file.write_text("{}")
+
+        with patch("os.path.expanduser", return_value=str(tmp_path)):
+            result = get_default_config_path()
+
+        assert result == str(config_file)
+
+    @patch("os.name", "posix")
+    def test_get_default_config_path_linux_fallback(self, tmp_path: Path) -> None:
+        """Test Linux path falls back to current directory if config doesn't exist."""
+        with patch("os.path.expanduser", return_value=str(tmp_path)):
+            result = get_default_config_path()
+
+        # Should fall back to current directory
+        assert result == "config.json"
+
+    def test_get_default_config_path_fallback_to_current_dir(self, tmp_path: Path) -> None:
+        """Test fallback to current directory when no standard location has config."""
+        os.chdir(tmp_path)
+
+        # Mock environment to avoid using real system paths
+        with patch.dict(os.environ, {}, clear=True):
+            result = get_default_config_path()
+
+        assert result == "config.json"

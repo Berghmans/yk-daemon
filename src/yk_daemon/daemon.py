@@ -13,7 +13,7 @@ import threading
 from pathlib import Path
 from typing import NoReturn
 
-from yk_daemon.config import Config, ConfigurationError, load_config
+from yk_daemon.config import Config, ConfigurationError, get_default_config_path, load_config
 from yk_daemon.notifications import Notifier, create_notifier_from_config
 from yk_daemon.rest_api import run_server as run_rest_server
 from yk_daemon.socket_server import SocketServer
@@ -283,9 +283,9 @@ Windows Service Management:
     parser.add_argument(
         "--config",
         type=str,
-        default="config.json",
+        default=None,
         metavar="PATH",
-        help="Path to configuration file (default: config.json)",
+        help="Path to configuration file (default: auto-detect from standard locations)",
     )
 
     parser.add_argument(
@@ -351,9 +351,12 @@ def main() -> NoReturn:
             print(f"ERROR: {e}", file=sys.stderr)
             sys.exit(1)
 
+    # Determine config file path
+    config_path = args.config if args.config else get_default_config_path()
+
     # Load configuration
     try:
-        config = load_config(args.config)
+        config = load_config(config_path)
     except ConfigurationError as e:
         print(f"Configuration error: {e}", file=sys.stderr)
         sys.exit(1)
@@ -364,8 +367,9 @@ def main() -> NoReturn:
     # Setup logging
     setup_logging(config, debug=args.debug)
 
-    # Log startup
-    logger.info(f"Starting YubiKey Daemon (config: {args.config})")
+    # Log startup with absolute path
+    abs_config_path = Path(config_path).absolute()
+    logger.info(f"Starting YubiKey Daemon (config: {abs_config_path})")
 
     # Run daemon
     run_daemon(config, debug=args.debug)
