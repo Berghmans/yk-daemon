@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/Berghmans/yk-daemon/compare/v0.1.1...v0.1.2) (2025-10-31)
+
+
+### Bug Fixes
+
+* ensure consistent config file loading across all entry points ([#29](https://github.com/Berghmans/yk-daemon/issues/29)) ([7e7e357](https://github.com/Berghmans/yk-daemon/commit/7e7e357109e28fd82602934ea2c04ca3d5f698a4)), closes [#28](https://github.com/Berghmans/yk-daemon/issues/28)
+
 ## [0.1.1](https://github.com/Berghmans/yk-daemon/compare/v0.1.0...v0.1.1) (2025-10-30)
 
 
