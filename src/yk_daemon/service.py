@@ -18,6 +18,7 @@ from yk_daemon.config import (
     ConfigurationError,
     _get_default_log_path,
     _get_default_sound_file_path,
+    get_default_config_path,
     load_config,
 )
 from yk_daemon.daemon import setup_logging
@@ -60,33 +61,6 @@ else:
 logger = logging.getLogger(__name__)
 
 
-def get_service_config_path() -> str:
-    """Get the configuration file path for the service.
-
-    Priority order:
-    1. YK_DAEMON_CONFIG_PATH environment variable
-    2. C:\\ProgramData\\yk-daemon\\config.json (Windows standard for service data)
-    3. config.json in current directory (fallback)
-
-    Returns:
-        Path to configuration file
-    """
-    # Check environment variable first
-    env_config = os.environ.get("YK_DAEMON_CONFIG_PATH")
-    if env_config:
-        return env_config
-
-    # Use ProgramData for service configuration (Windows standard)
-    program_data = os.environ.get("PROGRAMDATA", "C:\\ProgramData")
-    service_dir = os.path.join(program_data, "yk-daemon")
-    config_path = os.path.join(service_dir, "config.json")
-
-    # Create directory if it doesn't exist
-    os.makedirs(service_dir, exist_ok=True)
-
-    return config_path
-
-
 def run_daemon_process() -> None:
     """Run daemon in a separate process (called via multiprocessing)."""
     # Set up basic logging FIRST so we can capture early errors
@@ -117,7 +91,7 @@ def run_daemon_process() -> None:
 
     try:
         # Get config path appropriate for service
-        config_path = get_service_config_path()
+        config_path = get_default_config_path()
         logger.info(f"Config path: {config_path}")
 
         # Load configuration
@@ -248,7 +222,7 @@ class ServiceManager:
         from yk_daemon.config import Config
 
         # Get service directory
-        service_dir = get_service_config_path().replace("config.json", "").rstrip("/\\")
+        service_dir = get_default_config_path().replace("config.json", "").rstrip("/\\")
         os.makedirs(service_dir, exist_ok=True)
 
         # Create default config.json if it doesn't exist
@@ -324,7 +298,7 @@ class ServiceManager:
             print(f"Service '{self.service_display_name}' installed successfully")
             print()
             print("Service file locations:")
-            config_path_service = get_service_config_path()
+            config_path_service = get_default_config_path()
             service_dir = os.path.dirname(config_path_service)
             print(f"  Directory:     {service_dir}")
             print(f"  Config:        {config_path_service}")

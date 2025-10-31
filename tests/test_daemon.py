@@ -151,7 +151,9 @@ class TestArgumentParsing:
         with patch("sys.argv", ["yk-daemon.py"]):
             args = yk_daemon.parse_arguments()
             assert args.debug is False
-            assert args.config == "config.json"
+            assert (
+                args.config is None
+            )  # Now defaults to None, resolved later by get_default_config_path()
 
     def test_parse_arguments_debug_flag(self) -> None:
         """Test --debug flag."""
